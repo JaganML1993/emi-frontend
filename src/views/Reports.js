@@ -477,7 +477,7 @@ function Reports() {
                           beginAtZero: true,
                           ticks: {
                             callback: function (value) {
-                              return "$" + value.toFixed(2);
+                              return "₹" + value.toFixed(2);
                             },
                           },
                         },
@@ -503,7 +503,7 @@ function Reports() {
               <CardHeader>
                 <CardTitle tag="h4">Spending by EMI Type</CardTitle>
                 <p className="card-category">
-                  Total: ${spendingData?.totalSpending?.toFixed(2) || "0.00"}
+                  Total: ₹{spendingData?.totalSpending?.toFixed(2) || "0.00"}
                 </p>
               </CardHeader>
               <CardBody>
@@ -530,7 +530,7 @@ function Reports() {
               <CardHeader>
                 <CardTitle tag="h4">Income by EMI Type</CardTitle>
                 <p className="card-category">
-                  Total: ${incomeData?.totalIncome?.toFixed(2) || "0.00"}
+                  Total: ₹{incomeData?.totalIncome?.toFixed(2) || "0.00"}
                 </p>
               </CardHeader>
               <CardBody>
@@ -565,54 +565,56 @@ function Reports() {
                 </p>
               </CardHeader>
               <CardBody>
-                <Table responsive>
-                  <thead>
-                    <tr>
-                      <th>EMI Type</th>
-                      <th>Total Spent</th>
-                      <th>Transaction Count</th>
-                      <th>Average per Transaction</th>
-                      <th>Percentage of Total</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {spendingData?.categoryBreakdown?.map((item) => (
-                      <tr key={item.name}>
-                        <td>
-                          <span
-                            style={{
-                              color: item.color,
-                              fontWeight: "bold",
-                            }}
-                          >
-                            {item.name}
-                          </span>
-                        </td>
-                        <td>${item.total.toFixed(2)}</td>
-                        <td>{item.count}</td>
-                        <td>
-                          ${(item.total / item.count).toFixed(2)}
-                        </td>
-                        <td>
-                          <div className="d-flex align-items-center">
-                            <div className="mr-2" style={{ width: "100px" }}>
-                              <Progress
-                                value={
-                                  (item.total / spendingData.totalSpending) * 100
-                                }
-                                color="info"
-                                style={{ height: "8px" }}
-                              />
-                            </div>
-                            <span>
-                              {((item.total / spendingData.totalSpending) * 100).toFixed(1)}%
-                            </span>
-                          </div>
-                        </td>
+                <div className="table-responsive">
+                  <Table style={{ minWidth: '700px' }}>
+                    <thead>
+                      <tr>
+                        <th>EMI Type</th>
+                        <th>Total Spent</th>
+                        <th>Transaction Count</th>
+                        <th>Average per Transaction</th>
+                        <th>Percentage of Total</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </Table>
+                    </thead>
+                    <tbody>
+                      {spendingData?.categoryBreakdown?.map((item) => (
+                        <tr key={item.name}>
+                          <td>
+                            <span
+                              style={{
+                                color: item.color,
+                                fontWeight: "bold",
+                              }}
+                            >
+                              {item.name}
+                            </span>
+                          </td>
+                          <td>₹{item.total.toFixed(2)}</td>
+                          <td>{item.count}</td>
+                          <td>
+                            ₹{(item.total / item.count).toFixed(2)}
+                          </td>
+                          <td>
+                            <div className="d-flex align-items-center">
+                              <div className="mr-2" style={{ width: "100px" }}>
+                                <Progress
+                                  value={
+                                    (item.total / spendingData.totalSpending) * 100
+                                  }
+                                  color="info"
+                                  style={{ height: "8px" }}
+                                />
+                              </div>
+                              <span>
+                                {((item.total / spendingData.totalSpending) * 100).toFixed(1)}%
+                              </span>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </Table>
+                </div>
               </CardBody>
             </Card>
           </Col>
@@ -629,54 +631,56 @@ function Reports() {
                 </p>
               </CardHeader>
               <CardBody>
-                <Table responsive>
-                  <thead>
-                    <tr>
-                      <th>EMI Type</th>
-                      <th>Total Income</th>
-                      <th>Transaction Count</th>
-                      <th>Average per Transaction</th>
-                      <th>Percentage of Total</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {incomeData?.categoryBreakdown?.map((item) => (
-                      <tr key={item.name}>
-                        <td>
-                          <span
-                            style={{
-                              color: item.color,
-                              fontWeight: "bold",
-                            }}
-                          >
-                            {item.name}
-                          </span>
-                        </td>
-                        <td>${item.total.toFixed(2)}</td>
-                        <td>{item.count}</td>
-                        <td>
-                          ${(item.total / item.count).toFixed(2)}
-                        </td>
-                        <td>
-                          <div className="d-flex align-items-center">
-                            <div className="mr-2" style={{ width: "100px" }}>
-                              <Progress
-                                value={
-                                  (item.total / incomeData.totalIncome) * 100
-                                }
-                                color="success"
-                                style={{ height: "8px" }}
-                              />
-                            </div>
-                            <span>
-                              {((item.total / incomeData.totalIncome) * 100).toFixed(1)}%
-                            </span>
-                          </div>
-                        </td>
+                <div className="table-responsive">
+                  <Table style={{ minWidth: '700px' }}>
+                    <thead>
+                      <tr>
+                        <th>EMI Type</th>
+                        <th>Total Income</th>
+                        <th>Transaction Count</th>
+                        <th>Average per Transaction</th>
+                        <th>Percentage of Total</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </Table>
+                    </thead>
+                    <tbody>
+                      {incomeData?.categoryBreakdown?.map((item) => (
+                        <tr key={item.name}>
+                          <td>
+                            <span
+                              style={{
+                                color: item.color,
+                                fontWeight: "bold",
+                              }}
+                            >
+                              {item.name}
+                            </span>
+                          </td>
+                          <td>₹{item.total.toFixed(2)}</td>
+                          <td>{item.count}</td>
+                          <td>
+                            ₹{(item.total / item.count).toFixed(2)}
+                          </td>
+                          <td>
+                            <div className="d-flex align-items-center">
+                              <div className="mr-2" style={{ width: "100px" }}>
+                                <Progress
+                                  value={
+                                    (item.total / incomeData.totalIncome) * 100
+                                  }
+                                  color="success"
+                                  style={{ height: "8px" }}
+                                />
+                              </div>
+                              <span>
+                                {((item.total / incomeData.totalIncome) * 100).toFixed(1)}%
+                              </span>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </Table>
+                </div>
               </CardBody>
             </Card>
           </Col>
@@ -693,58 +697,60 @@ function Reports() {
                 </p>
               </CardHeader>
               <CardBody>
-                <Table responsive>
-                  <thead>
-                    <tr>
-                      <th>Date</th>
-                      <th>Type</th>
-                      <th>Description</th>
-                      <th>EMI Type</th>
-                      <th>Amount</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {dashboardData?.recentTransactions?.map((transaction) => (
-                      <tr key={transaction._id}>
-                        <td>
-                          {format(new Date(transaction.date), "MMM dd, yyyy")}
-                        </td>
-                        <td>
-                          <Badge
-                            color={
-                              transaction.type === "income" ? "success" : "danger"
-                            }
-                          >
-                            {transaction.type === "income" ? "Income" : "Expense"}
-                          </Badge>
-                        </td>
-                        <td>{transaction.description}</td>
-                        <td>
-                          <span
-                            style={{
-                              color: transaction.category?.color || '#6c757d',
-                              fontWeight: "bold",
-                            }}
-                          >
-                            {transaction.category?.name || 'Uncategorized'}
-                          </span>
-                        </td>
-                        <td>
-                          <span
-                            className={
-                              transaction.type === "income"
-                                ? "text-success"
-                                : "text-danger"
-                            }
-                            style={{ fontWeight: "bold" }}
-                          >
-                            ${transaction.amount.toFixed(2)}
-                          </span>
-                        </td>
+                <div className="table-responsive">
+                  <Table style={{ minWidth: '600px' }}>
+                    <thead>
+                      <tr>
+                        <th>Date</th>
+                        <th>Type</th>
+                        <th>Description</th>
+                        <th>EMI Type</th>
+                        <th>Amount</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </Table>
+                    </thead>
+                    <tbody>
+                      {dashboardData?.recentTransactions?.map((transaction) => (
+                        <tr key={transaction._id}>
+                          <td>
+                            {format(new Date(transaction.date), "MMM dd, yyyy")}
+                          </td>
+                          <td>
+                            <Badge
+                              color={
+                                transaction.type === "income" ? "success" : "danger"
+                              }
+                            >
+                              {transaction.type === "income" ? "Income" : "Expense"}
+                            </Badge>
+                          </td>
+                          <td>{transaction.description}</td>
+                          <td>
+                            <span
+                              style={{
+                                color: transaction.category?.color || '#6c757d',
+                                fontWeight: "bold",
+                              }}
+                            >
+                              {transaction.category?.name || 'Uncategorized'}
+                            </span>
+                          </td>
+                          <td>
+                            <span
+                              className={
+                                transaction.type === "income"
+                                  ? "text-success"
+                                  : "text-danger"
+                              }
+                              style={{ fontWeight: "bold" }}
+                            >
+                              ₹{transaction.amount.toFixed(2)}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </Table>
+                </div>
               </CardBody>
             </Card>
           </Col>

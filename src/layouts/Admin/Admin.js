@@ -24,7 +24,7 @@ import PerfectScrollbar from "perfect-scrollbar";
 import AdminNavbar from "components/Navbars/AdminNavbar.js";
 import Footer from "components/Footer/Footer.js";
 import Sidebar from "components/Sidebar/Sidebar.js";
-import FixedPlugin from "components/FixedPlugin/FixedPlugin.js";
+// import FixedPlugin from "components/FixedPlugin/FixedPlugin.js";
 
 import routes from "routes.js";
 
@@ -46,10 +46,8 @@ function Admin(props) {
       ps = new PerfectScrollbar(mainPanelRef.current, {
         suppressScrollX: true,
       });
-      let tables = document.querySelectorAll(".table-responsive");
-      for (let i = 0; i < tables.length; i++) {
-        ps = new PerfectScrollbar(tables[i]);
-      }
+      // Tables now use CSS-based responsive scrolling instead of PerfectScrollbar
+      // This provides better mobile support and native scrolling behavior
     }
     // Specify how to clean up after this effect:
     return function cleanup() {
@@ -62,10 +60,8 @@ function Admin(props) {
   });
   React.useEffect(() => {
     if (navigator.platform.indexOf("Win") > -1) {
-      let tables = document.querySelectorAll(".table-responsive");
-      for (let i = 0; i < tables.length; i++) {
-        ps = new PerfectScrollbar(tables[i]);
-      }
+      // Tables now use CSS-based responsive scrolling instead of PerfectScrollbar
+      // This provides better mobile support and native scrolling behavior
     }
     document.documentElement.scrollTop = 0;
     document.scrollingElement.scrollTop = 0;
@@ -130,7 +126,7 @@ function Admin(props) {
               location.pathname === "/admin/maps" ? null : <Footer fluid />
             }
           </div>
-          <FixedPlugin bgColor={color} handleBgClick={changeColor} />
+          {/* <FixedPlugin bgColor={color} handleBgClick={changeColor} /> */}
         </React.Fragment>
       )}
     </BackgroundColorContext.Consumer>

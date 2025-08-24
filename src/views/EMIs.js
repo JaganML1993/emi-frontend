@@ -295,112 +295,114 @@ function EMITable({ emis, onEdit, onDelete, onPayment, showActions }) {
   }
 
         return (
-     <Table style={{ width: '100%', tableLayout: 'fixed' }}>
-       <thead>
-         <tr>
-           <th style={{ width: '20%' }}>EMI Details</th>
-           <th style={{ width: '15%' }}>Progress</th>
-           <th style={{ width: '15%' }}>Next Due</th>
-           <th style={{ width: '20%' }}>Amount</th>
-           <th style={{ width: '10%' }}>Status</th>
-           {showActions && <th style={{ width: '20%' }}>Actions</th>}
-         </tr>
-       </thead>
-       <tbody>
-                 {emis.map((emi) => (
-           <tr key={emi._id}>
-             <td style={{ verticalAlign: 'top', wordWrap: 'break-word' }}>
-               <div>
-                 <strong>{emi.name}</strong>
-                 <br />
-                 <small className="text-muted">
-                   <i className={getTypeIcon(emi.type)}></i> {getTypeDisplayName(emi.type)}
-                 </small>
-               </div>
-             </td>
-             <td style={{ verticalAlign: 'top' }}>
-               <div>
-                 <Progress
-                   value={calculateProgress(emi)}
-                   color={emi.status === "completed" ? "success" : "info"}
-                 />
-                 <small>
-                   {emi.paidInstallments} / {emi.totalInstallments}
-                 </small>
-               </div>
-             </td>
-             {emi.paymentType === 'emi' ? (
-               <td style={{ verticalAlign: 'top' }}>
-                 <div>
-                   <strong>{emi.nextDueDate ? format(new Date(emi.nextDueDate), "MMM dd, yyyy") : "-"}</strong>
-                   <br />
-                   <Badge color={getDueStatusColor(getDueStatus(emi))}>
-                     {getDueStatus(emi) === "overdue" && "Overdue"}
-                     {getDueStatus(emi) === "due-soon" && "Due Soon"}
-                     {getDueStatus(emi) === "upcoming" && "Upcoming"}
-                   </Badge>
-                 </div>
-               </td>
-             ) : (
-               <td style={{ verticalAlign: 'top' }}>
-                 <div>
-                   <strong>-</strong>
-                   <br />
-                   <small className="text-muted">Full Payment</small>
-                 </div>
-               </td>
-             )}
-             <td style={{ verticalAlign: 'top', wordWrap: 'break-word' }}>
-               <div>
-                 <strong>₹{emi.emiAmount.toLocaleString()}</strong>
-                 <br />
-                 <small className="text-muted">
-                   Total: ₹{(emi.emiAmount * emi.totalInstallments).toLocaleString()}
-                 </small>
-                 <br />
-                 <small className="text-muted">
-                   Remaining: ₹{emi.remainingAmount.toLocaleString()}
-                 </small>
-               </div>
-             </td>
-             <td style={{ verticalAlign: 'top' }}>
-               <Badge color={getStatusColor(emi.status)}>
-                 {emi.status.charAt(0).toUpperCase() + emi.status.slice(1)}
-               </Badge>
-             </td>
-             {showActions && (
-               <td style={{ verticalAlign: 'top' }}>
-                 <Button
-                   color="info"
-                   size="sm"
-                   onClick={() => onEdit(emi)}
-                   className="mr-2"
-                 >
-                   Edit
-                 </Button>
-                 {emi.status === "active" && (
-                   <Button
-                     color="success"
-                     size="sm"
-                     onClick={() => onPayment(emi)}
-                     className="mr-2"
-                   >
-                     Pay
-                   </Button>
-                 )}
-                 <Button
-                   color="danger"
-                   size="sm"
-                   onClick={() => onDelete(emi._id)}
-                 >
-                   Delete
-                 </Button>
-               </td>
-             )}
-           </tr>
-         ))}
-      </tbody>
-    </Table>
+          <div className="table-responsive">
+            <Table style={{ minWidth: '800px' }}>
+              <thead>
+                <tr>
+                  <th style={{ minWidth: '150px' }}>EMI Details</th>
+                  <th style={{ minWidth: '120px' }}>Progress</th>
+                  <th style={{ minWidth: '120px' }}>Next Due</th>
+                  <th style={{ minWidth: '150px' }}>Amount</th>
+                  <th style={{ minWidth: '100px' }}>Status</th>
+                  {showActions && <th style={{ minWidth: '160px' }}>Actions</th>}
+                </tr>
+              </thead>
+              <tbody>
+                {emis.map((emi) => (
+                  <tr key={emi._id}>
+                    <td style={{ verticalAlign: 'top', wordWrap: 'break-word' }}>
+                      <div>
+                        <strong>{emi.name}</strong>
+                        <br />
+                        <small className="text-muted">
+                          <i className={getTypeIcon(emi.type)}></i> {getTypeDisplayName(emi.type)}
+                        </small>
+                      </div>
+                    </td>
+                    <td style={{ verticalAlign: 'top' }}>
+                      <div>
+                        <Progress
+                          value={calculateProgress(emi)}
+                          color={emi.status === "completed" ? "success" : "info"}
+                        />
+                        <small>
+                          {emi.paidInstallments} / {emi.totalInstallments}
+                        </small>
+                      </div>
+                    </td>
+                    {emi.paymentType === 'emi' ? (
+                      <td style={{ verticalAlign: 'top' }}>
+                        <div>
+                          <strong>{emi.nextDueDate ? format(new Date(emi.nextDueDate), "MMM dd, yyyy") : "-"}</strong>
+                          <br />
+                          <Badge color={getDueStatusColor(getDueStatus(emi))}>
+                            {getDueStatus(emi) === "overdue" && "Overdue"}
+                            {getDueStatus(emi) === "due-soon" && "Due Soon"}
+                            {getDueStatus(emi) === "upcoming" && "Upcoming"}
+                          </Badge>
+                        </div>
+                      </td>
+                    ) : (
+                      <td style={{ verticalAlign: 'top' }}>
+                        <div>
+                          <strong>-</strong>
+                          <br />
+                          <small className="text-muted">Full Payment</small>
+                        </div>
+                      </td>
+                    )}
+                    <td style={{ verticalAlign: 'top', wordWrap: 'break-word' }}>
+                      <div>
+                        <strong>₹{emi.emiAmount.toLocaleString()}</strong>
+                        <br />
+                        <small className="text-muted">
+                          Total: ₹{(emi.emiAmount * emi.totalInstallments).toLocaleString()}
+                        </small>
+                        <br />
+                        <small className="text-muted">
+                          Remaining: ₹{emi.remainingAmount.toLocaleString()}
+                        </small>
+                      </div>
+                    </td>
+                    <td style={{ verticalAlign: 'top' }}>
+                      <Badge color={getStatusColor(emi.status)}>
+                        {emi.status.charAt(0).toUpperCase() + emi.status.slice(1)}
+                      </Badge>
+                    </td>
+                    {showActions && (
+                      <td style={{ verticalAlign: 'top' }}>
+                        <Button
+                          color="info"
+                          size="sm"
+                          onClick={() => onEdit(emi)}
+                          className="mr-2"
+                        >
+                          Edit
+                        </Button>
+                        {emi.status === "active" && (
+                          <Button
+                            color="success"
+                            size="sm"
+                            onClick={() => onPayment(emi)}
+                            className="mr-2"
+                          >
+                            Pay
+                          </Button>
+                        )}
+                        <Button
+                          color="danger"
+                          size="sm"
+                          onClick={() => onDelete(emi._id)}
+                        >
+                          Delete
+                        </Button>
+                      </td>
+                    )}
+                  </tr>
+                ))}
+              </tbody>
+            </Table>
+          </div>
   );
 }
 

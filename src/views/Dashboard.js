@@ -7,10 +7,6 @@ import {
   Row,
   Col,
   Button,
-  Form,
-  FormGroup,
-  Label,
-  Input,
   Table,
   Badge,
 } from "reactstrap";
@@ -22,7 +18,7 @@ function Dashboard() {
   const [dashboardData, setDashboardData] = useState(null);
   const [upcomingPayments, setUpcomingPayments] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [period, setPeriod] = useState("month");
+
 
   const fetchDashboardData = useCallback(async () => {
     try {
@@ -32,7 +28,7 @@ function Dashboard() {
         return;
       }
 
-      const response = await api.get(`/api/reports/dashboard?period=${period}`, {
+      const response = await api.get(`/api/reports/dashboard`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       setDashboardData(response.data.data);
@@ -41,7 +37,7 @@ function Dashboard() {
     } finally {
       setLoading(false);
     }
-  }, [period]);
+  }, []);
 
   const fetchUpcomingPayments = useCallback(async () => {
     try {
@@ -118,6 +114,19 @@ function Dashboard() {
     fetchUpcomingPayments();
   }, [fetchDashboardData, fetchUpcomingPayments]);
 
+
+
+  // Calculate monthly savings from Savings EMI type
+  const getMonthlySavings = useCallback(() => {
+    if (!upcomingPayments) return 0;
+    
+    return upcomingPayments
+      .filter(payment => payment.type === 'savings_emi')
+      .reduce((total, payment) => total + (payment.amount || 0), 0);
+  }, [upcomingPayments]);
+
+
+
   const getChartData = () => {
     if (!dashboardData?.monthlyTrend) return null;
 
@@ -131,16 +140,28 @@ function Dashboard() {
         {
           label: "Income",
           data: incomeData,
-          borderColor: "#00d25b",
-          backgroundColor: "rgba(0, 210, 91, 0.1)",
+          borderColor: "#00E676", // Vibrant green
+          backgroundColor: "rgba(0, 230, 118, 0.2)",
+          borderWidth: 3, // Slightly thicker lines
           tension: 0.4,
+          pointBackgroundColor: "#00E676",
+          pointBorderColor: "#ffffff",
+          pointBorderWidth: 2,
+          pointRadius: 5,
+          pointHoverRadius: 7,
         },
         {
           label: "EMI Payments",
           data: expenseData,
-          borderColor: "#fd5d93",
-          backgroundColor: "rgba(253, 93, 147, 0.1)",
+          borderColor: "#FF4081", // Vibrant pink
+          backgroundColor: "rgba(255, 64, 129, 0.2)",
+          borderWidth: 3, // Slightly thicker lines
           tension: 0.4,
+          pointBackgroundColor: "#FF4081",
+          pointBorderColor: "#ffffff",
+          pointBorderWidth: 2,
+          pointRadius: 5,
+          pointHoverRadius: 7,
         },
       ],
     };
@@ -148,37 +169,31 @@ function Dashboard() {
 
 
 
+
+
   if (loading) {
-    return <div>Loading...</div>;
+    return (
+      <div className="content">
+        <div className="d-flex justify-content-center align-items-center" style={{ minHeight: '400px' }}>
+          <div className="text-center">
+            <i className="tim-icons icon-refresh-02 fa-spin" style={{ fontSize: '2rem', color: '#1d8cf8' }} />
+            <h5 className="mt-3">Loading Dashboard...</h5>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   return (
     <>
+
       <div className="content">
+
+
+
         {/* Summary Cards */}
         <Row>
-          <Col lg="3" md="6" sm="6">
-            <Card className="card-stats">
-              <CardBody>
-                <Row>
-                  <Col xs="5">
-                    <div className="icon-big text-center icon-success">
-                      <i className="tim-icons icon-money-coins" />
-                    </div>
-                  </Col>
-                  <Col xs="7">
-                    <div className="numbers">
-                      <p className="card-category">Total Income</p>
-                      <CardTitle tag="h3">
-                        ${dashboardData?.summary?.totalIncome?.toFixed(2) || "0.00"}
-                      </CardTitle>
-                    </div>
-                  </Col>
-                </Row>
-              </CardBody>
-            </Card>
-          </Col>
-          <Col lg="3" md="6" sm="6">
+          <Col lg="6" md="6" sm="12">
             <Card className="card-stats">
               <CardBody>
                 <Row>
@@ -189,9 +204,9 @@ function Dashboard() {
                   </Col>
                   <Col xs="7">
                     <div className="numbers">
-                      <p className="card-category">Total Expenses</p>
-                      <CardTitle tag="h3">
-                        ${dashboardData?.summary?.totalExpenses?.toFixed(2) || "0.00"}
+                      <p className="card-category" style={{ fontSize: '0.875rem' }}>Total Expenses</p>
+                      <CardTitle tag="h4" style={{ fontSize: '1.25rem' }}>
+                        ₹{dashboardData?.summary?.totalExpenses?.toFixed(2) || "0.00"}
                       </CardTitle>
                     </div>
                   </Col>
@@ -199,41 +214,20 @@ function Dashboard() {
               </CardBody>
             </Card>
           </Col>
-          <Col lg="3" md="6" sm="6">
+          <Col lg="6" md="6" sm="12">
             <Card className="card-stats">
               <CardBody>
                 <Row>
                   <Col xs="5">
-                    <div className="icon-big text-center icon-info">
-                      <i className="tim-icons icon-wallet-43" />
+                    <div className="icon-big text-center icon-success">
+                      <i className="tim-icons icon-money-coins"></i>
                     </div>
                   </Col>
                   <Col xs="7">
                     <div className="numbers">
-                      <p className="card-category">Net Amount</p>
-                      <CardTitle tag="h3">
-                        ${dashboardData?.summary?.netAmount?.toFixed(2) || "0.00"}
-                      </CardTitle>
-                    </div>
-                  </Col>
-                </Row>
-              </CardBody>
-            </Card>
-          </Col>
-          <Col lg="3" md="6" sm="6">
-            <Card className="card-stats">
-              <CardBody>
-                <Row>
-                  <Col xs="5">
-                    <div className="icon-big text-center icon-warning">
-                      <i className="tim-icons icon-chart-bar-32" />
-                    </div>
-                  </Col>
-                  <Col xs="7">
-                    <div className="numbers">
-                      <p className="card-category">Period</p>
-                      <CardTitle tag="h3">
-                        {period.charAt(0).toUpperCase() + period.slice(1)}
+                      <p className="card-category" style={{ fontSize: '0.875rem' }}>Monthly Savings</p>
+                      <CardTitle tag="h4" style={{ fontSize: '1.25rem' }}>
+                        ₹{getMonthlySavings().toFixed(2)}
                       </CardTitle>
                     </div>
                   </Col>
@@ -242,6 +236,8 @@ function Dashboard() {
             </Card>
           </Col>
         </Row>
+
+
 
         {/* Upcoming Payments */}
         <Row>
@@ -301,32 +297,17 @@ function Dashboard() {
           </Col>
         </Row>
 
-        {/* Period Selector and Chart */}
+        {/* Chart */}
         <Row>
           <Col xs="12">
             <Card className="card-chart">
               <CardHeader>
                 <Row>
-                  <Col className="text-left" sm="6">
-                    <h5 className="card-category">EMI Overview</h5>
-                    <CardTitle tag="h2">EMI Payments vs Income</CardTitle>
+                  <Col className="text-left" sm="12">
+                    <h6 className="card-category" style={{ fontSize: '0.875rem', marginBottom: '0.5rem' }}>EMI Overview</h6>
+                    <CardTitle tag="h4" style={{ fontSize: '1.25rem', marginBottom: '0' }}>EMI Payments vs Income</CardTitle>
                   </Col>
-                  <Col sm="6">
-                    <Form className="d-flex justify-content-end">
-                      <FormGroup className="mb-0">
-                        <Label className="mr-2">Period:</Label>
-                        <Input
-                          type="select"
-                          value={period}
-                          onChange={(e) => setPeriod(e.target.value)}
-                        >
-                          <option value="week">Week</option>
-                          <option value="month">Month</option>
-                          <option value="year">Year</option>
-                        </Input>
-                      </FormGroup>
-                    </Form>
-                  </Col>
+
                 </Row>
               </CardHeader>
               <CardBody>
@@ -340,9 +321,31 @@ function Dashboard() {
                         scales: {
                           y: {
                             beginAtZero: true,
+                            grid: {
+                              color: "rgba(255, 255, 255, 0.1)",
+                              drawBorder: false,
+                            },
                             ticks: {
                               callback: function (value) {
-                                return "$" + value.toFixed(2);
+                                return "₹" + value.toFixed(2);
+                              },
+                              color: "#ffffff",
+                              font: {
+                                size: 11,
+                                weight: "500",
+                              },
+                            },
+                          },
+                          x: {
+                            grid: {
+                              color: "rgba(255, 255, 255, 0.1)",
+                              drawBorder: false,
+                            },
+                            ticks: {
+                              color: "#ffffff",
+                              font: {
+                                size: 11,
+                                weight: "500",
                               },
                             },
                           },
@@ -350,6 +353,20 @@ function Dashboard() {
                         plugins: {
                           legend: {
                             position: "top",
+                            labels: {
+                              usePointStyle: true,
+                              padding: 20,
+                              color: "#ffffff",
+                              font: {
+                                size: 12,
+                                weight: "600",
+                              },
+                            },
+                          },
+                        },
+                        elements: {
+                          point: {
+                            hoverBorderWidth: 3,
                           },
                         },
                       }}
@@ -372,7 +389,7 @@ function Dashboard() {
                 <Row>
                   <Col className="text-left" sm="6">
                     <CardTitle tag="h4">Recent Transactions</CardTitle>
-                    <p className="card-category">Your latest financial activities</p>
+                    <p className="card-category">Your latest financial activities for current month</p>
                   </Col>
                   <Col className="text-right" sm="6">
                     <Button
@@ -386,45 +403,47 @@ function Dashboard() {
                 </Row>
               </CardHeader>
               <CardBody>
-                <Table className="tablesorter" style={{ width: '100%', tableLayout: 'fixed' }}>
-                  <thead className="text-primary">
-                    <tr>
-                      <th style={{ width: '20%' }}>Date</th>
-                      <th style={{ width: '15%' }}>Type</th>
-                      <th style={{ width: '50%' }}>Description</th>
-                      <th style={{ width: '15%' }} className="text-center">Amount</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {dashboardData?.recentTransactions?.map((transaction) => (
-                      <tr key={transaction._id}>
-                        <td style={{ verticalAlign: 'top', wordWrap: 'break-word' }}>{format(new Date(transaction.date), "MMM dd, yyyy")}</td>
-                        <td style={{ verticalAlign: 'top', wordWrap: 'break-word' }}>
-                          <Badge
-                            color={
-                              transaction.type === "income" ? "success" : "danger"
-                            }
-                          >
-                            {transaction.type === "income" ? "Income" : "Expense"}
-                          </Badge>
-                        </td>
-                        <td style={{ verticalAlign: 'top', wordWrap: 'break-word' }}>{transaction.description}</td>
-                        <td className="text-center" style={{ verticalAlign: 'top', wordWrap: 'break-word' }}>
-                          <span
-                            className={
-                              transaction.type === "income"
-                                ? "text-success"
-                                : "text-danger"
-                            }
-                            style={{ fontWeight: "bold" }}
-                          >
-                            ${transaction.amount.toFixed(2)}
-                          </span>
-                        </td>
+                <div className="table-responsive">
+                  <Table className="tablesorter" style={{ minWidth: '600px' }}>
+                    <thead className="text-primary">
+                      <tr>
+                        <th style={{ minWidth: '120px' }}>Date</th>
+                        <th style={{ minWidth: '100px' }}>Type</th>
+                        <th style={{ minWidth: '250px' }}>Description</th>
+                        <th style={{ minWidth: '120px' }} className="text-center">Amount</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </Table>
+                    </thead>
+                    <tbody>
+                      {dashboardData?.recentTransactions?.map((transaction) => (
+                        <tr key={transaction._id}>
+                          <td style={{ verticalAlign: 'top', wordWrap: 'break-word' }}>{format(new Date(transaction.date), "MMM dd, yyyy")}</td>
+                          <td style={{ verticalAlign: 'top', wordWrap: 'break-word' }}>
+                            <Badge
+                              color={
+                                transaction.type === "income" ? "success" : "danger"
+                              }
+                            >
+                              {transaction.type === "income" ? "Income" : "Expense"}
+                            </Badge>
+                          </td>
+                          <td style={{ verticalAlign: 'top', wordWrap: 'break-word' }}>{transaction.description}</td>
+                          <td className="text-center" style={{ verticalAlign: 'top', wordWrap: 'break-word' }}>
+                            <span
+                              className={
+                                transaction.type === "income"
+                                  ? "text-success"
+                                  : "text-danger"
+                              }
+                              style={{ fontWeight: "bold" }}
+                            >
+                              ₹{transaction.amount.toFixed(2)}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </Table>
+                </div>
               </CardBody>
             </Card>
           </Col>

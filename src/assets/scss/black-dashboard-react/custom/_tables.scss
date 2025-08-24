@@ -156,10 +156,77 @@
 }
 
 .table-responsive{
-  overflow: scroll;
+  overflow-x: auto;
+  overflow-y: hidden;
   padding-bottom: 10px;
+  -webkit-overflow-scrolling: touch; // Smooth scrolling on iOS
+  
+  // Mobile-specific styles
+  @media (max-width: 768px) {
+    overflow-x: scroll;
+    overflow-y: visible;
+    
+    // Ensure tables can scroll horizontally on mobile
+    table {
+      min-width: 600px; // Minimum width to prevent squishing
+      width: 100%;
+    }
+    
+    // Add scroll indicators for mobile
+    &::before {
+      content: "← Scroll →";
+      display: block;
+      text-align: center;
+      color: rgba(255, 255, 255, 0.5);
+      font-size: 12px;
+      margin-bottom: 10px;
+      font-style: italic;
+    }
+  }
+  
+  // Hide scroll indicators on larger screens
+  @media (min-width: 769px) {
+    &::before {
+      display: none;
+    }
+  }
 }
 
 #tables .table-responsive{
     margin-bottom: 30px;
+}
+
+// Mobile table optimizations
+@media (max-width: 768px) {
+  .table {
+    font-size: 14px; // Smaller font on mobile
+    
+    th, td {
+      padding: 8px 6px; // Reduced padding on mobile
+      white-space: nowrap; // Prevent text wrapping
+      min-width: 80px; // Minimum column width
+    }
+    
+    // Make action buttons smaller on mobile
+    .btn {
+      padding: 4px 8px;
+      font-size: 12px;
+      margin: 2px;
+    }
+    
+    // Ensure badges don't break layout
+    .badge {
+      font-size: 11px;
+      white-space: nowrap;
+    }
+  }
+  
+  // Stack buttons vertically on very small screens
+  @media (max-width: 480px) {
+    .table td .btn {
+      display: block;
+      margin: 2px 0;
+      width: 100%;
+    }
+  }
 }

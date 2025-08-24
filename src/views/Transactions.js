@@ -235,63 +235,65 @@ function Transactions() {
                 </Row>
 
                 {/* Transactions Table */}
-                <Table responsive>
-                  <thead>
-                    <tr>
-                      <th>Date</th>
-                      <th>Type</th>
-                      <th>Description</th>
-                      <th>Amount</th>
-                      <th>Payment Method</th>
-                      <th>Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {transactions.map((transaction) => (
-                      <tr key={transaction._id}>
-                        <td>
-                          {format(new Date(transaction.date), "MMM dd, yyyy")}
-                        </td>
-                        <td>
-                          <Badge
-                            color={transaction.type === "income" ? "success" : "danger"}
-                          >
-                            {transaction.type === "income" ? "Income" : "Expense"}
-                          </Badge>
-                        </td>
-                        <td>{transaction.description}</td>
-                        <td>
-                          <span
-                            className={
-                              transaction.type === "income" ? "text-success" : "text-danger"
-                            }
-                            style={{ fontWeight: "bold" }}
-                          >
-                            ${transaction.amount.toFixed(2)}
-                          </span>
-                        </td>
-                        <td>{getPaymentMethodLabel(transaction.paymentMethod)}</td>
-                        <td>
-                          <Button
-                            size="sm"
-                            color="info"
-                            className="mr-2"
-                            onClick={() => handleEdit(transaction)}
-                          >
-                            <i className="tim-icons icon-pencil" />
-                          </Button>
-                          <Button
-                            size="sm"
-                            color="danger"
-                            onClick={() => handleDelete(transaction._id)}
-                          >
-                            <i className="tim-icons icon-trash-simple" />
-                          </Button>
-                        </td>
+                <div className="table-responsive">
+                  <Table>
+                    <thead>
+                      <tr>
+                        <th>Date</th>
+                        <th>Type</th>
+                        <th>Description</th>
+                        <th>Amount</th>
+                        <th>Payment Method</th>
+                        <th>Actions</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </Table>
+                    </thead>
+                    <tbody>
+                      {transactions.map((transaction) => (
+                        <tr key={transaction._id}>
+                          <td>
+                            {format(new Date(transaction.date), "MMM dd, yyyy")}
+                          </td>
+                          <td>
+                            <Badge
+                              color={transaction.type === "income" ? "success" : "danger"}
+                            >
+                              {transaction.type === "income" ? "Income" : "Expense"}
+                            </Badge>
+                          </td>
+                          <td>{transaction.description}</td>
+                          <td>
+                            <span
+                              className={
+                                transaction.type === "income" ? "text-success" : "text-danger"
+                              }
+                              style={{ fontWeight: "bold" }}
+                            >
+                              ₹{transaction.amount.toFixed(2)}
+                            </span>
+                          </td>
+                          <td>{getPaymentMethodLabel(transaction.paymentMethod)}</td>
+                          <td>
+                            <Button
+                              size="sm"
+                              color="info"
+                              className="mr-2"
+                              onClick={() => handleEdit(transaction)}
+                            >
+                              <i className="tim-icons icon-pencil" />
+                            </Button>
+                            <Button
+                              size="sm"
+                              color="danger"
+                              onClick={() => handleDelete(transaction._id)}
+                            >
+                              <i className="tim-icons icon-trash-simple" />
+                            </Button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </Table>
+                </div>
 
                 {/* Pagination */}
                 {pagination.totalPages > 1 && (
