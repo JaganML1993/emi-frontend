@@ -363,12 +363,19 @@ function Reports() {
                   </Col>
                   <Col xs="7">
                     <div className="numbers">
-                      <p className="card-category">Monthly EMI</p>
+                      <p className="card-category">Monthly EMI Burden</p>
                       <h4 className="card-title">
                         ₹{emiSummaryData?.emiBreakdown?.reduce((sum, type) => 
-                          sum + type.emis.reduce((typeSum, emi) => typeSum + (emi.emiAmount || 0), 0), 0
+                          sum + type.emis.reduce((typeSum, emi) => {
+                            // Only include active EMIs with regular payment type (not full payment)
+                            if (emi.status === 'active' && emi.paymentType === 'emi') {
+                              return typeSum + (emi.emiAmount || 0);
+                            }
+                            return typeSum;
+                          }, 0), 0
                         )?.toLocaleString() || "0"}
                       </h4>
+                      <small className="text-muted">Active monthly EMIs only</small>
                     </div>
                   </Col>
                 </Row>
@@ -394,7 +401,12 @@ function Reports() {
                       <div key={index} className="mb-3">
                         <div className="d-flex justify-content-between align-items-center mb-2">
                           <h6 className="mb-0 text-capitalize">{type.type.replace('_', ' ')}</h6>
-                          <span className="badge badge-primary">{type.count}</span>
+                          <div>
+                            <span className="badge badge-primary mr-2">{type.count}</span>
+                            {type.emis.some(emi => emi.paymentType === 'full_payment') && (
+                              <span className="badge badge-info">Full Payment</span>
+                            )}
+                          </div>
                         </div>
                         <Progress
                           value={type.totalAmount > 0 ? (type.paidAmount / type.totalAmount) * 100 : 0}
@@ -405,6 +417,21 @@ function Reports() {
                           <span>₹{type.paidAmount?.toLocaleString() || "0"}</span>
                           <span>₹{type.totalAmount?.toLocaleString() || "0"}</span>
                         </div>
+                        {/* Show EMI details */}
+                        {type.emis.map((emi, emiIndex) => (
+                          <div key={emiIndex} className="mt-2 p-2 bg-light rounded small">
+                            <div className="d-flex justify-content-between align-items-center">
+                              <span className="font-weight-bold">{emi.name}</span>
+                              <span className={`badge badge-${emi.status === 'active' ? 'success' : emi.status === 'completed' ? 'info' : 'warning'}`}>
+                                {emi.status}
+                              </span>
+                            </div>
+                            <div className="d-flex justify-content-between text-muted">
+                              <span>₹{emi.emiAmount?.toLocaleString() || "0"}</span>
+                              <span>{emi.paymentType === 'full_payment' ? 'Full Payment' : `${emi.paidInstallments}/${emi.totalInstallments} installments`}</span>
+                            </div>
+                          </div>
+                        ))}
                       </div>
                     ))}
                   </div>
@@ -527,12 +554,12 @@ function Reports() {
           </Col>
           <Col lg="6" md="12">
             <Card>
-              <CardHeader>
-                <CardTitle tag="h4">Income by EMI Type</CardTitle>
-                <p className="card-category">
-                  Total: ₹{incomeData?.totalIncome?.toFixed(2) || "0.00"}
-                </p>
-              </CardHeader>
+                             <CardHeader>
+                 <CardTitle tag="h4">Income by Source</CardTitle>
+                 <p className="card-category">
+                   Total: ₹{incomeData?.totalIncome?.toFixed(2) || "0.00"}
+                 </p>
+               </CardHeader>
               <CardBody>
                 {incomeData?.categoryBreakdown && (
                   <Doughnut
@@ -624,24 +651,24 @@ function Reports() {
         <Row>
           <Col xs="12">
             <Card>
-              <CardHeader>
-                <CardTitle tag="h4">Income Breakdown</CardTitle>
-                <p className="card-category">
-                  Detailed view of your income by EMI type
-                </p>
-              </CardHeader>
+                             <CardHeader>
+                 <CardTitle tag="h4">Income Breakdown</CardTitle>
+                 <p className="card-category">
+                   Detailed view of your income by source
+                 </p>
+               </CardHeader>
               <CardBody>
                 <div className="table-responsive">
                   <Table style={{ minWidth: '700px' }}>
-                    <thead>
-                      <tr>
-                        <th>EMI Type</th>
-                        <th>Total Income</th>
-                        <th>Transaction Count</th>
-                        <th>Average per Transaction</th>
-                        <th>Percentage of Total</th>
-                      </tr>
-                    </thead>
+                                         <thead>
+                       <tr>
+                         <th>Income Source</th>
+                         <th>Total Income</th>
+                         <th>Transaction Count</th>
+                         <th>Average per Transaction</th>
+                         <th>Percentage of Total</th>
+                       </tr>
+                     </thead>
                     <tbody>
                       {incomeData?.categoryBreakdown?.map((item) => (
                         <tr key={item.name}>

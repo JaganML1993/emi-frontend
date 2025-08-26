@@ -138,7 +138,7 @@ function Dashboard() {
       labels,
       datasets: [
         {
-          label: "Income",
+          label: "Monthly Income",
           data: incomeData,
           borderColor: "#00E676", // Vibrant green
           backgroundColor: "rgba(0, 230, 118, 0.2)",
@@ -151,7 +151,7 @@ function Dashboard() {
           pointHoverRadius: 7,
         },
         {
-          label: "EMI Payments",
+          label: "Monthly Expenses",
           data: expenseData,
           borderColor: "#FF4081", // Vibrant pink
           backgroundColor: "rgba(255, 64, 129, 0.2)",
@@ -204,7 +204,7 @@ function Dashboard() {
                   </Col>
                   <Col xs="7">
                     <div className="numbers">
-                      <p className="card-category" style={{ fontSize: '0.875rem' }}>Total Expenses</p>
+                      <p className="card-category" style={{ fontSize: '0.875rem' }}>Monthly EMI Expenses</p>
                       <CardTitle tag="h4" style={{ fontSize: '1.25rem' }}>
                         ₹{dashboardData?.summary?.totalExpenses?.toFixed(2) || "0.00"}
                       </CardTitle>
