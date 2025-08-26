@@ -28,6 +28,7 @@ function Reports() {
     startDate: "",
     endDate: "",
   });
+  const [collapsedEMIs, setCollapsedEMIs] = useState(new Set([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]));
 
   const fetchDashboardData = useCallback(async () => {
     try {
@@ -94,6 +95,36 @@ function Reports() {
     setFilters({ ...filters, [key]: value });
   };
 
+  const toggleEMICollapse = (typeIndex) => {
+    setCollapsedEMIs(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(typeIndex)) {
+        newSet.delete(typeIndex);
+      } else {
+        newSet.add(typeIndex);
+      }
+      return newSet;
+    });
+  };
+
+  const toggleAllEMIs = () => {
+    if (collapsedEMIs.size === 0) {
+      // All are expanded, collapse all
+      setCollapsedEMIs(new Set(emiSummaryData?.emiBreakdown?.map((_, index) => index) || []));
+    } else {
+      // Some or all are collapsed, expand all
+      setCollapsedEMIs(new Set());
+    }
+  };
+
+  // Initialize collapsed state when EMI data loads
+  useEffect(() => {
+    if (emiSummaryData?.emiBreakdown) {
+      const allIndices = emiSummaryData.emiBreakdown.map((_, index) => index);
+      setCollapsedEMIs(new Set(allIndices));
+    }
+  }, [emiSummaryData]);
+
   const getChartData = (data, type) => {
     if (!data) return null;
 
@@ -108,23 +139,41 @@ function Reports() {
         {
           label: "Income",
           data: incomeData,
-          borderColor: "#00d25b",
-          backgroundColor: "rgba(0, 210, 91, 0.1)",
+          borderColor: "#00ff88",
+          backgroundColor: "rgba(0, 255, 136, 0.15)",
+          borderWidth: 2,
           tension: 0.4,
+          pointBackgroundColor: "#00ff88",
+          pointBorderColor: "#ffffff",
+          pointBorderWidth: 2,
+          pointRadius: 4,
+          pointHoverRadius: 6,
         },
         {
           label: "Expenses",
           data: expenseData,
-          borderColor: "#fd5d93",
-          backgroundColor: "rgba(253, 93, 147, 0.1)",
+          borderColor: "#ff3366",
+          backgroundColor: "rgba(255, 51, 102, 0.15)",
+          borderWidth: 2,
           tension: 0.4,
+          pointBackgroundColor: "#ff3366",
+          pointBorderColor: "#ffffff",
+          pointBorderWidth: 2,
+          pointRadius: 4,
+          pointHoverRadius: 6,
         },
         {
           label: "Net",
           data: netData,
-          borderColor: "#1d8cf8",
-          backgroundColor: "rgba(29, 140, 248, 0.1)",
+          borderColor: "#4d94ff",
+          backgroundColor: "rgba(77, 148, 255, 0.15)",
+          borderWidth: 2,
           tension: 0.4,
+          pointBackgroundColor: "#4d94ff",
+          pointBorderColor: "#ffffff",
+          pointBorderWidth: 2,
+          pointRadius: 4,
+          pointHoverRadius: 6,
         },
       ],
     };
@@ -388,52 +437,80 @@ function Reports() {
         <Row>
           <Col lg="6" md="12">
             <Card>
-              <CardHeader>
-                <CardTitle tag="h4">EMI Breakdown by Type</CardTitle>
-                <p className="card-category">
-                  Breakdown of your EMIs by category
-                </p>
-              </CardHeader>
+                             <CardHeader>
+                 <CardTitle tag="h4">EMI Breakdown by Type</CardTitle>
+                 <p className="card-category">
+                   Breakdown of your EMIs by category
+                 </p>
+                 <div className="text-right">
+                                       <button 
+                      className="btn btn-outline-primary btn-sm"
+                      onClick={toggleAllEMIs}
+                    >
+                      {collapsedEMIs.size === 0 ? 'Collapse All' : 'Expand All'}
+                    </button>
+                    <small className="text-muted d-block mt-1">All EMI types are collapsed by default</small>
+                 </div>
+               </CardHeader>
               <CardBody>
                 {emiSummaryData?.emiBreakdown ? (
                   <div>
-                    {emiSummaryData.emiBreakdown.map((type, index) => (
-                      <div key={index} className="mb-3">
-                        <div className="d-flex justify-content-between align-items-center mb-2">
-                          <h6 className="mb-0 text-capitalize">{type.type.replace('_', ' ')}</h6>
-                          <div>
-                            <span className="badge badge-primary mr-2">{type.count}</span>
-                            {type.emis.some(emi => emi.paymentType === 'full_payment') && (
-                              <span className="badge badge-info">Full Payment</span>
-                            )}
-                          </div>
-                        </div>
-                        <Progress
-                          value={type.totalAmount > 0 ? (type.paidAmount / type.totalAmount) * 100 : 0}
-                          color="success"
-                          className="mb-2"
-                        />
-                        <div className="d-flex justify-content-between small text-muted">
-                          <span>₹{type.paidAmount?.toLocaleString() || "0"}</span>
-                          <span>₹{type.totalAmount?.toLocaleString() || "0"}</span>
-                        </div>
-                        {/* Show EMI details */}
-                        {type.emis.map((emi, emiIndex) => (
-                          <div key={emiIndex} className="mt-2 p-2 bg-light rounded small">
-                            <div className="d-flex justify-content-between align-items-center">
-                              <span className="font-weight-bold">{emi.name}</span>
-                              <span className={`badge badge-${emi.status === 'active' ? 'success' : emi.status === 'completed' ? 'info' : 'warning'}`}>
-                                {emi.status}
-                              </span>
-                            </div>
-                            <div className="d-flex justify-content-between text-muted">
-                              <span>₹{emi.emiAmount?.toLocaleString() || "0"}</span>
-                              <span>{emi.paymentType === 'full_payment' ? 'Full Payment' : `${emi.paidInstallments}/${emi.totalInstallments} installments`}</span>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    ))}
+                                         {emiSummaryData.emiBreakdown.map((type, index) => (
+                       <div key={index} className="mb-3">
+                         <div className="d-flex justify-content-between align-items-center mb-2">
+                           <div className="d-flex align-items-center">
+                             <button 
+                               className="btn btn-link btn-sm p-0 mr-2"
+                               onClick={() => toggleEMICollapse(index)}
+                               style={{ color: '#1d8cf8', textDecoration: 'none' }}
+                             >
+                               <i className={`tim-icons ${collapsedEMIs.has(index) ? 'icon-minimal-down' : 'icon-minimal-up'}`}></i>
+                             </button>
+                             <h6 className="mb-0 text-capitalize">{type.type.replace('_', ' ')}</h6>
+                           </div>
+                           <div>
+                             <span className="badge badge-primary mr-2">{type.count}</span>
+                             {type.emis.some(emi => emi.paymentType === 'full_payment') && (
+                               <span className="badge badge-info">Full Payment</span>
+                             )}
+                           </div>
+                         </div>
+                         <Progress
+                           value={type.totalAmount > 0 ? (type.paidAmount / type.totalAmount) * 100 : 0}
+                           color="success"
+                           className="mb-2"
+                         />
+                         <div className="d-flex justify-content-between small text-muted">
+                           <span>₹{type.paidAmount?.toLocaleString() || "0"}</span>
+                           <span>₹{type.totalAmount?.toLocaleString() || "0"}</span>
+                         </div>
+                         {/* Show EMI details - Collapsible */}
+                         {!collapsedEMIs.has(index) && (
+                           <div className="mt-2">
+                             {type.emis.map((emi, emiIndex) => (
+                               <div key={emiIndex} className="mt-2 p-2 rounded small" style={{ 
+                                 background: 'linear-gradient(135deg, rgba(102, 126, 234, 0.8) 0%, rgba(118, 75, 162, 0.8) 100%)',
+                                 color: 'white',
+                                 boxShadow: '0 4px 15px rgba(0,0,0,0.15)',
+                                 backdropFilter: 'blur(10px)',
+                                 border: '1px solid rgba(255, 255, 255, 0.1)'
+                               }}>
+                                 <div className="d-flex justify-content-between align-items-center">
+                                   <span className="font-weight-bold text-white">{emi.name}</span>
+                                   <span className={`badge badge-${emi.status === 'active' ? 'success' : emi.status === 'completed' ? 'info' : 'warning'}`}>
+                                     {emi.status}
+                                   </span>
+                                 </div>
+                                 <div className="d-flex justify-content-between text-white-50">
+                                   <span>₹{emi.emiAmount?.toLocaleString() || "0"}</span>
+                                   <span>{emi.paymentType === 'full_payment' ? 'Full Payment' : `${emi.paidInstallments}/${emi.totalInstallments} installments`}</span>
+                                 </div>
+                               </div>
+                             ))}
+                           </div>
+                         )}
+                       </div>
+                     ))}
                   </div>
                 ) : (
                   <div className="text-center py-4">
@@ -726,15 +803,14 @@ function Reports() {
               <CardBody>
                 <div className="table-responsive">
                   <Table style={{ minWidth: '600px' }}>
-                    <thead>
-                      <tr>
-                        <th>Date</th>
-                        <th>Type</th>
-                        <th>Description</th>
-                        <th>EMI Type</th>
-                        <th>Amount</th>
-                      </tr>
-                    </thead>
+                                         <thead>
+                       <tr>
+                         <th>Date</th>
+                         <th>Type</th>
+                         <th>Description</th>
+                         <th>Amount</th>
+                       </tr>
+                     </thead>
                     <tbody>
                       {dashboardData?.recentTransactions?.map((transaction) => (
                         <tr key={transaction._id}>
@@ -750,18 +826,8 @@ function Reports() {
                               {transaction.type === "income" ? "Income" : "Expense"}
                             </Badge>
                           </td>
-                          <td>{transaction.description}</td>
-                          <td>
-                            <span
-                              style={{
-                                color: transaction.category?.color || '#6c757d',
-                                fontWeight: "bold",
-                              }}
-                            >
-                              {transaction.category?.name || 'Uncategorized'}
-                            </span>
-                          </td>
-                          <td>
+                                                     <td>{transaction.description}</td>
+                           <td>
                             <span
                               className={
                                 transaction.type === "income"

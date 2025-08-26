@@ -53,6 +53,7 @@ function Dashboard() {
         const payments = [];
         response.data.data.emiBreakdown.forEach(type => {
           console.log(`Processing EMI type: ${type.type}`, type.emis);
+          console.log(`Type: ${type.type}, Count: ${type.emis.length}`);
           type.emis.forEach(emi => {
             // Special debug for Suresh Cheetu
             if (emi.name.includes('Suresh') || emi.name.includes('Cheetu')) {
@@ -78,7 +79,7 @@ function Dashboard() {
               dueDate.setHours(0, 0, 0, 0);
               const daysUntilDue = Math.ceil((dueDate - today) / (1000 * 60 * 60 * 24));
               
-              console.log(`EMI ${emi.name}: dueDate=${dueDate.toISOString()}, today=${today.toISOString()}, daysUntilDue=${daysUntilDue}`);
+              console.log(`EMI ${emi.name}: dueDate=${dueDate.toISOString()}, today=${today.toISOString()}, daysUntilDue=${daysUntilDue}, type=${type.type}, isIncome=${type.type === 'income_emi'}`);
               
               if (daysUntilDue >= -30) { // Show overdue payments (up to 30 days) and future payments
                 console.log(`Adding EMI ${emi.name} to payments with daysUntilDue=${daysUntilDue}`);
@@ -87,18 +88,21 @@ function Dashboard() {
                   dueDate: emi.nextDueDate,
                   amount: emi.emiAmount,
                   daysUntilDue: daysUntilDue,
-                  type: type.type
+                  type: type.type,
+                  isIncome: type.type === 'income_emi' || type.type === 'savings_emi' || type.type.includes('income') || type.type.includes('savings') // Flag for income EMIs
                 });
               } else {
                 console.log(`EMI ${emi.name} not added: daysUntilDue=${daysUntilDue} < -30`);
               }
             } else {
-              console.log(`EMI ${emi.name} not processed: status=${emi.status}, hasNextDueDate=${!!emi.nextDueDate}, nextDueDate=${emi.nextDueDate}`);
+              console.log(`EMI ${emi.name} not processed: status=${emi.status}, hasNextDueDate=${!!emi.nextDueDate}, nextDueDate=${emi.nextDueDate}, type=${type.type}`);
             }
           });
         });
         
         console.log("Final payments array:", payments);
+        console.log("EMI types found:", response.data.data.emiBreakdown.map(t => t.type));
+        console.log("Income EMIs found:", payments.filter(p => p.isIncome));
         
         // Sort by due date (earliest first)
         payments.sort((a, b) => a.daysUntilDue - b.daysUntilDue);
@@ -116,14 +120,12 @@ function Dashboard() {
 
 
 
-  // Calculate monthly savings from Savings EMI type
-  const getMonthlySavings = useCallback(() => {
-    if (!upcomingPayments) return 0;
+  // Calculate total savings (sum of all-time income only)
+  const getTotalSavings = useCallback(() => {
+    if (!dashboardData?.summary?.totalSavings) return 0;
     
-    return upcomingPayments
-      .filter(payment => payment.type === 'savings_emi')
-      .reduce((total, payment) => total + (payment.amount || 0), 0);
-  }, [upcomingPayments]);
+    return dashboardData.summary.totalSavings;
+  }, [dashboardData]);
 
 
 
@@ -140,28 +142,28 @@ function Dashboard() {
         {
           label: "Monthly Income",
           data: incomeData,
-          borderColor: "#00E676", // Vibrant green
-          backgroundColor: "rgba(0, 230, 118, 0.2)",
-          borderWidth: 3, // Slightly thicker lines
+          borderColor: "#00D4AA", // Rich emerald green
+          backgroundColor: "rgba(0, 212, 170, 0.15)",
+          borderWidth: 2, // Thinner lines
           tension: 0.4,
-          pointBackgroundColor: "#00E676",
+          pointBackgroundColor: "#00D4AA",
           pointBorderColor: "#ffffff",
           pointBorderWidth: 2,
-          pointRadius: 5,
-          pointHoverRadius: 7,
+          pointRadius: 4,
+          pointHoverRadius: 6,
         },
         {
           label: "Monthly Expenses",
           data: expenseData,
-          borderColor: "#FF4081", // Vibrant pink
-          backgroundColor: "rgba(255, 64, 129, 0.2)",
-          borderWidth: 3, // Slightly thicker lines
+          borderColor: "#FF6B9D", // Rich coral pink
+          backgroundColor: "rgba(255, 107, 157, 0.15)",
+          borderWidth: 2, // Thinner lines
           tension: 0.4,
-          pointBackgroundColor: "#FF4081",
+          pointBackgroundColor: "#FF6B9D",
           pointBorderColor: "#ffffff",
           pointBorderWidth: 2,
-          pointRadius: 5,
-          pointHoverRadius: 7,
+          pointRadius: 4,
+          pointHoverRadius: 6,
         },
       ],
     };
@@ -225,9 +227,9 @@ function Dashboard() {
                   </Col>
                   <Col xs="7">
                     <div className="numbers">
-                      <p className="card-category" style={{ fontSize: '0.875rem' }}>Monthly Savings</p>
+                      <p className="card-category" style={{ fontSize: '0.875rem' }}>Total Savings</p>
                       <CardTitle tag="h4" style={{ fontSize: '1.25rem' }}>
-                        ₹{getMonthlySavings().toFixed(2)}
+                        ₹{getTotalSavings().toFixed(2)}
                       </CardTitle>
                     </div>
                   </Col>
@@ -255,31 +257,37 @@ function Dashboard() {
                   <Row>
                     {upcomingPayments.map((payment, index) => (
                       <Col key={index} xs="12" sm="6" className="mb-2">
-                        <div className="d-flex align-items-center p-2 border border-secondary rounded" style={{ backgroundColor: payment.daysUntilDue < 0 ? '#dc3545' : payment.daysUntilDue <= 7 ? '#dc3545' : payment.daysUntilDue <= 14 ? '#ffc107' : '#17a2b8', color: payment.daysUntilDue <= 14 ? '#000' : '#fff', minHeight: '50px' }}>
+                        <div className="d-flex align-items-center p-2 rounded" style={{ 
+                          backgroundColor: payment.isIncome ? 'rgba(32, 201, 151, 0.6)' : payment.daysUntilDue < 0 ? 'rgba(220, 53, 69, 0.6)' : payment.daysUntilDue <= 7 ? 'rgba(220, 53, 69, 0.6)' : payment.daysUntilDue <= 14 ? 'rgba(255, 193, 7, 0.6)' : 'rgba(23, 162, 184, 0.6)', 
+                          color: payment.isIncome ? '#fff' : payment.daysUntilDue <= 14 ? '#000' : '#fff', 
+                          minHeight: '50px',
+                          backdropFilter: 'blur(15px)',
+                          boxShadow: '0 8px 32px rgba(0, 0, 0, 0.15), 0 4px 16px rgba(0, 0, 0, 0.1)'
+                        }}>
                           <div className="mr-3">
-                            <i className={`tim-icons icon-${payment.type === 'savings_emi' ? 'money-coins' : 'credit-card'}`} style={{ color: payment.daysUntilDue <= 14 ? '#000' : '#fff', fontSize: '0.8rem' }} />
+                            <i className={`tim-icons icon-${payment.isIncome ? 'money-coins' : payment.type === 'savings_emi' ? 'money-coins' : 'credit-card'}`} style={{ color: payment.isIncome ? '#fff' : payment.daysUntilDue <= 14 ? '#000' : '#fff', fontSize: '0.8rem' }} />
                           </div>
                           <div className="flex-grow-1 mr-3">
-                            <h6 className="mb-0" style={{ fontSize: '0.8rem', color: payment.daysUntilDue <= 14 ? '#000' : '#fff' }}>{payment.name}</h6>
-                            <small className="text-capitalize" style={{ fontSize: '0.65rem', color: payment.daysUntilDue <= 14 ? '#000' : '#fff', opacity: 0.8 }}>
-                              {payment.type.replace('_', ' ')}
+                            <h6 className="mb-0" style={{ fontSize: '0.8rem', color: payment.isIncome ? '#fff' : payment.daysUntilDue <= 14 ? '#000' : '#fff' }}>{payment.name}</h6>
+                            <small className="text-capitalize" style={{ fontSize: '0.65rem', color: payment.isIncome ? '#fff' : payment.daysUntilDue <= 14 ? '#000' : '#fff', opacity: 0.8 }}>
+                              {payment.isIncome ? 'Income EMI' : payment.type.replace('_', ' ')}
                             </small>
                           </div>
                           <div className="mr-3 text-center">
-                            <span className={`badge badge-${payment.daysUntilDue < 0 ? 'danger' : payment.daysUntilDue <= 7 ? 'danger' : payment.daysUntilDue <= 14 ? 'warning' : 'info'}`} style={{ fontSize: '0.6rem' }}>
-                              {payment.daysUntilDue < 0 ? 'Overdue' : 
+                            <span className={`badge badge-${payment.isIncome ? 'success' : payment.daysUntilDue < 0 ? 'danger' : payment.daysUntilDue <= 7 ? 'danger' : payment.daysUntilDue <= 14 ? 'warning' : 'info'}`} style={{ fontSize: '0.6rem' }}>
+                              {payment.isIncome ? 'Income' : payment.daysUntilDue < 0 ? 'Overdue' : 
                                payment.daysUntilDue === 0 ? 'Today' : 
                                payment.daysUntilDue === 1 ? 'Tomorrow' : 
                                `${payment.daysUntilDue}d`}
                             </span>
                           </div>
                           <div className="mr-3 text-center">
-                            <small style={{ color: payment.daysUntilDue <= 14 ? '#000' : '#fff', opacity: 0.8, fontSize: '0.65rem' }}>
+                            <small style={{ color: payment.isIncome ? '#fff' : payment.daysUntilDue <= 14 ? '#000' : '#fff', opacity: 0.8, fontSize: '0.65rem' }}>
                               {format(new Date(payment.dueDate), "MMM dd")}
                             </small>
                           </div>
                           <div className="text-center">
-                            <h6 className="mb-0" style={{ fontSize: '0.9rem', color: payment.daysUntilDue <= 14 ? '#000' : '#fff' }}>₹{payment.amount?.toLocaleString() || "0"}</h6>
+                            <h6 className="mb-0" style={{ fontSize: '0.9rem', color: payment.isIncome ? '#fff' : payment.daysUntilDue <= 14 ? '#000' : '#fff' }}>₹{payment.amount?.toLocaleString() || "0"}</h6>
                           </div>
                         </div>
                       </Col>
