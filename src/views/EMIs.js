@@ -29,11 +29,11 @@ import api from "../config/axios";
 const getStatusColor = (status) => {
   switch (status) {
     case "active":
-      return "success";
+      return "primary";
     case "completed":
-      return "info";
+      return "success";
     case "defaulted":
-      return "danger";
+      return "warning";
     default:
       return "secondary";
   }
@@ -126,7 +126,7 @@ const getDueStatusColor = (status) => {
     case "due-soon":
       return "warning";
     default:
-      return "success";
+      return "info";
   }
 };
 
@@ -162,6 +162,16 @@ function EMIs() {
     fetchEMIs();
   }, [fetchEMIs]);
 
+  // Refresh data when component comes into focus (e.g., after navigation back from payment)
+  useEffect(() => {
+    const handleFocus = () => {
+      fetchEMIs();
+    };
+
+    window.addEventListener('focus', handleFocus);
+    return () => window.removeEventListener('focus', handleFocus);
+  }, [fetchEMIs]);
+
   const openPaymentModal = (emi) => {
     navigate(`/admin/emis/${emi._id}/pay`);
   };
@@ -195,33 +205,108 @@ function EMIs() {
   };
 
   if (loading) {
-    return <div>Loading...</div>;
+    return (
+      <div className="content">
+        <div className="d-flex justify-content-center align-items-center" style={{ minHeight: '400px' }}>
+          <div className="text-center">
+            <i className="tim-icons icon-refresh-02 fa-spin" style={{ fontSize: '2rem', color: '#1d8cf8' }} />
+            <h5 className="mt-3">Loading EMIs...</h5>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   return (
     <>
-             <div className="content">
-         {/* EMI Management */}
+      <div className="content">
+        {/* EMI Management */}
         <Row>
           <Col md="12">
-            <Card>
-              <CardHeader>
-                <CardTitle tag="h4">EMI Management</CardTitle>
-                <Button
-                  color="primary"
-                  size="sm"
-                  onClick={handleAddEMI}
-                >
-                  Add New EMI
-                </Button>
+            <Card style={{ 
+              background: 'linear-gradient(135deg, #1e1e2d 0%, #2d2b42 100%)',
+              border: '1px solid rgba(255, 255, 255, 0.1)',
+              borderRadius: '15px',
+              boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3)',
+              backdropFilter: 'blur(10px)'
+            }}>
+              <CardHeader style={{ 
+                background: 'linear-gradient(135deg, rgba(29, 140, 248, 0.1) 0%, rgba(29, 140, 248, 0.05) 100%)',
+                borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
+                borderRadius: '15px 15px 0 0'
+              }}>
+                <div className="d-flex justify-content-between align-items-center">
+                  <div>
+                    <CardTitle tag="h4" style={{ 
+                      color: '#ffffff',
+                      fontWeight: '700',
+                      margin: '0',
+                      fontSize: '1.5rem'
+                    }}>
+                      <i className="tim-icons icon-chart-pie-36 mr-2" style={{ color: '#1d8cf8' }}></i>
+                      EMI Management
+                    </CardTitle>
+                    <p className="text-white-50 mb-0" style={{ fontSize: '0.9rem' }}>
+                      Manage and track your EMI payments
+                    </p>
+                  </div>
+                  <div>
+                    <Button
+                      style={{
+                        background: 'linear-gradient(135deg, #1d8cf8 0%, #0056b3 100%)',
+                        border: 'none',
+                        borderRadius: '8px',
+                        padding: '8px 16px',
+                        fontWeight: '600',
+                        boxShadow: '0 4px 15px rgba(29, 140, 248, 0.3)',
+                        transition: 'all 0.3s ease'
+                      }}
+                      size="sm"
+                      onClick={handleAddEMI}
+                      className="me-2"
+                    >
+                      <i className="tim-icons icon-simple-add mr-1"></i>
+                      Add New EMI
+                    </Button>
+                    <Button
+                      style={{
+                        background: 'linear-gradient(135deg, #6c757d 0%, #495057 100%)',
+                        border: 'none',
+                        borderRadius: '8px',
+                        padding: '8px 16px',
+                        fontWeight: '600',
+                        boxShadow: '0 4px 15px rgba(108, 117, 125, 0.3)',
+                        transition: 'all 0.3s ease'
+                      }}
+                      size="sm"
+                      onClick={fetchEMIs}
+                    >
+                      <i className="tim-icons icon-refresh-02"></i> Refresh
+                    </Button>
+                  </div>
+                </div>
               </CardHeader>
-              <CardBody>
-                <Nav tabs>
+              <CardBody style={{ padding: '1.5rem' }}>
+                <Nav tabs style={{ 
+                  borderBottom: '2px solid rgba(255, 255, 255, 0.1)',
+                  marginBottom: '1.5rem'
+                }}>
                   <NavItem>
                     <NavLink
                       className={classnames({ active: activeTab === "1" })}
                       onClick={() => setActiveTab("1")}
+                      style={{
+                        color: activeTab === "1" ? '#1d8cf8' : '#ffffff',
+                        backgroundColor: activeTab === "1" ? 'rgba(29, 140, 248, 0.1)' : 'transparent',
+                        border: 'none',
+                        borderRadius: '8px 8px 0 0',
+                        fontWeight: '600',
+                        padding: '12px 20px',
+                        transition: 'all 0.3s ease',
+                        borderBottom: activeTab === "1" ? '3px solid #1d8cf8' : 'none'
+                      }}
                     >
+                      <i className="tim-icons icon-chart-pie-36 mr-2"></i>
                       Active EMIs
                     </NavLink>
                   </NavItem>
@@ -229,7 +314,18 @@ function EMIs() {
                     <NavLink
                       className={classnames({ active: activeTab === "2" })}
                       onClick={() => setActiveTab("2")}
+                      style={{
+                        color: activeTab === "2" ? '#00d25b' : '#ffffff',
+                        backgroundColor: activeTab === "2" ? 'rgba(0, 210, 91, 0.1)' : 'transparent',
+                        border: 'none',
+                        borderRadius: '8px 8px 0 0',
+                        fontWeight: '600',
+                        padding: '12px 20px',
+                        transition: 'all 0.3s ease',
+                        borderBottom: activeTab === "2" ? '3px solid #00d25b' : 'none'
+                      }}
                     >
+                      <i className="tim-icons icon-check-2 mr-2"></i>
                       Completed EMIs
                     </NavLink>
                   </NavItem>
@@ -237,7 +333,18 @@ function EMIs() {
                     <NavLink
                       className={classnames({ active: activeTab === "3" })}
                       onClick={() => setActiveTab("3")}
+                      style={{
+                        color: activeTab === "3" ? '#ff8d72' : '#ffffff',
+                        backgroundColor: activeTab === "3" ? 'rgba(255, 141, 114, 0.1)' : 'transparent',
+                        border: 'none',
+                        borderRadius: '8px 8px 0 0',
+                        fontWeight: '600',
+                        padding: '12px 20px',
+                        transition: 'all 0.3s ease',
+                        borderBottom: activeTab === "3" ? '3px solid #ff8d72' : 'none'
+                      }}
                     >
+                      <i className="tim-icons icon-chart-bar-32 mr-2"></i>
                       All EMIs
                     </NavLink>
                   </NavItem>
@@ -288,54 +395,228 @@ function EMIs() {
 function EMITable({ emis, onEdit, onDelete, onPayment, showActions }) {
   if (emis.length === 0) {
     return (
-      <div className="text-center py-4">
-        <p>No EMIs found.</p>
+      <div className="text-center py-5">
+        <i className="tim-icons icon-chart-pie-36" style={{ fontSize: '3rem', color: '#6c757d', marginBottom: '1rem' }}></i>
+        <h5 style={{ color: '#ffffff', marginBottom: '0.5rem' }}>No EMIs Found</h5>
+        <p style={{ color: '#6c757d' }}>Start by adding your first EMI to track your payments.</p>
       </div>
     );
   }
 
-        return (
-          <div className="table-responsive">
-            <Table style={{ minWidth: '800px' }}>
+  return (
+    <div className="table-responsive">
+      <style>
+        {`
+          .emi-table th,
+          .emi-table td {
+            border: none !important;
+            border-top: none !important;
+            border-bottom: none !important;
+            border-left: none !important;
+            border-right: none !important;
+          }
+          .emi-table {
+            border: none !important;
+          }
+        `}
+      </style>
+      <Table className="emi-table" style={{ 
+        minWidth: '800px',
+        color: '#ffffff',
+        borderCollapse: 'separate',
+        borderSpacing: '0',
+        border: 'none'
+      }}>
               <thead>
-                <tr>
-                  <th style={{ minWidth: '150px' }}>EMI Details</th>
-                  <th style={{ minWidth: '120px' }}>Progress</th>
-                  <th style={{ minWidth: '120px' }}>Next Due</th>
-                  <th style={{ minWidth: '150px' }}>Amount</th>
-                  <th style={{ minWidth: '100px' }}>Status</th>
-                  {showActions && <th style={{ minWidth: '160px' }}>Actions</th>}
+                <tr style={{ 
+                  background: 'linear-gradient(135deg, rgba(29, 140, 248, 0.1) 0%, rgba(29, 140, 248, 0.05) 100%)',
+                  borderBottom: '2px solid rgba(255, 255, 255, 0.1)'
+                }}>
+                  <th style={{ 
+                    minWidth: '150px',
+                    color: '#1d8cf8',
+                    fontWeight: '700',
+                    fontSize: '0.9rem',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.5px',
+                    padding: '15px 10px',
+                    border: 'none'
+                  }}>
+                    <i className="tim-icons icon-single-02 mr-1"></i>
+                    EMI Details
+                  </th>
+                  <th style={{ 
+                    minWidth: '120px',
+                    color: '#1d8cf8',
+                    fontWeight: '700',
+                    fontSize: '0.9rem',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.5px',
+                    padding: '15px 10px',
+                    border: 'none'
+                  }}>
+                    <i className="tim-icons icon-chart-pie-36 mr-1"></i>
+                    Progress
+                  </th>
+                  <th style={{ 
+                    minWidth: '120px',
+                    color: '#1d8cf8',
+                    fontWeight: '700',
+                    fontSize: '0.9rem',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.5px',
+                    padding: '15px 10px',
+                    border: 'none'
+                  }}>
+                    <i className="tim-icons icon-calendar-60 mr-1"></i>
+                    Next Due
+                  </th>
+                  <th style={{ 
+                    minWidth: '150px',
+                    color: '#1d8cf8',
+                    fontWeight: '700',
+                    fontSize: '0.9rem',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.5px',
+                    padding: '15px 10px',
+                    border: 'none'
+                  }}>
+                    <i className="tim-icons icon-money-coins mr-1"></i>
+                    Amount
+                  </th>
+                  <th style={{ 
+                    minWidth: '100px',
+                    color: '#1d8cf8',
+                    fontWeight: '700',
+                    fontSize: '0.9rem',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.5px',
+                    padding: '15px 10px',
+                    border: 'none'
+                  }}>
+                    <i className="tim-icons icon-badge mr-1"></i>
+                    Status
+                  </th>
+                  {showActions && (
+                    <th style={{ 
+                      minWidth: '160px',
+                      color: '#1d8cf8',
+                      fontWeight: '700',
+                      fontSize: '0.9rem',
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.5px',
+                      padding: '15px 10px',
+                      border: 'none'
+                    }}>
+                      <i className="tim-icons icon-settings mr-1"></i>
+                      Actions
+                    </th>
+                  )}
                 </tr>
               </thead>
               <tbody>
-                {emis.map((emi) => (
-                  <tr key={emi._id}>
-                    <td style={{ verticalAlign: 'top', wordWrap: 'break-word' }}>
+                {emis.map((emi, index) => (
+                  <tr key={emi._id} style={{
+                    background: index % 2 === 0 ? 'rgba(255, 255, 255, 0.02)' : 'rgba(255, 255, 255, 0.05)',
+                    borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
+                    transition: 'all 0.3s ease',
+                    cursor: 'pointer'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = 'rgba(29, 140, 248, 0.1)';
+                    e.currentTarget.style.transform = 'translateY(-2px)';
+                    e.currentTarget.style.boxShadow = '0 4px 15px rgba(0, 0, 0, 0.2)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = index % 2 === 0 ? 'rgba(255, 255, 255, 0.02)' : 'rgba(255, 255, 255, 0.05)';
+                    e.currentTarget.style.transform = 'translateY(0)';
+                    e.currentTarget.style.boxShadow = 'none';
+                  }}>
+                    <td style={{ 
+                      verticalAlign: 'top', 
+                      wordWrap: 'break-word',
+                      padding: '15px 10px',
+                      border: 'none'
+                    }}>
                       <div>
-                        <strong>{emi.name}</strong>
+                        <strong style={{ 
+                          color: '#ffffff',
+                          fontSize: '1rem',
+                          fontWeight: '600'
+                        }}>
+                          {emi.name}
+                        </strong>
                         <br />
-                        <small className="text-muted">
-                          <i className={getTypeIcon(emi.type)}></i> {getTypeDisplayName(emi.type)}
+                        <small style={{ 
+                          color: '#6c757d',
+                          fontSize: '0.85rem'
+                        }}>
+                          <i className={getTypeIcon(emi.type)} style={{ color: '#1d8cf8' }}></i> {getTypeDisplayName(emi.type)}
                         </small>
                       </div>
                     </td>
-                    <td style={{ verticalAlign: 'top' }}>
-                      <div>
+                    <td style={{ 
+                      verticalAlign: 'top',
+                      padding: '15px 10px',
+                      border: 'none'
+                    }}>
+                      <div style={{ border: 'none' }}>
                         <Progress
                           value={calculateProgress(emi)}
                           color={emi.status === "completed" ? "success" : "info"}
+                          style={{ 
+                            height: '8px',
+                            borderRadius: '4px',
+                            backgroundColor: 'rgba(255, 255, 255, 0.1)',
+                            border: 'none',
+                            boxShadow: 'none'
+                          }}
                         />
-                        <small>
+                        <small style={{ 
+                          color: '#6c757d',
+                          fontSize: '0.8rem',
+                          marginTop: '5px',
+                          display: 'block'
+                        }}>
                           {emi.paidInstallments} / {emi.totalInstallments}
                         </small>
                       </div>
                     </td>
                     {emi.paymentType === 'emi' ? (
-                      <td style={{ verticalAlign: 'top' }}>
+                      <td style={{ 
+                        verticalAlign: 'top',
+                        padding: '15px 10px',
+                        border: 'none'
+                      }}>
                         <div>
-                          <strong>{emi.nextDueDate ? format(new Date(emi.nextDueDate), "MMM dd, yyyy") : "-"}</strong>
+                          <strong style={{ 
+                            color: '#ffffff',
+                            fontSize: '0.9rem',
+                            fontWeight: '600'
+                          }}>
+                            {emi.nextDueDate ? format(new Date(emi.nextDueDate), "MMM dd, yyyy") : "-"}
+                          </strong>
                           <br />
-                          <Badge color={getDueStatusColor(getDueStatus(emi))}>
+                          <Badge 
+                            style={{
+                              fontSize: '0.7rem',
+                              padding: '4px 8px',
+                              borderRadius: '12px',
+                              fontWeight: '600',
+                              background: getDueStatus(emi) === "overdue" 
+                                ? 'linear-gradient(135deg, #EF4444 0%, #DC2626 100%)'
+                                : getDueStatus(emi) === "due-soon"
+                                ? 'linear-gradient(135deg, #EF4444 0%, #DC2626 100%)'
+                                : 'linear-gradient(135deg, #8B5CF6 0%, #7C3AED 100%)',
+                              color: '#ffffff',
+                              border: 'none',
+                              boxShadow: getDueStatus(emi) === "overdue" 
+                                ? '0 2px 8px rgba(239, 68, 68, 0.3)'
+                                : getDueStatus(emi) === "due-soon"
+                                ? '0 2px 8px rgba(239, 68, 68, 0.3)'
+                                : '0 2px 8px rgba(139, 92, 246, 0.3)'
+                            }}
+                          >
                             {getDueStatus(emi) === "overdue" && "Overdue"}
                             {getDueStatus(emi) === "due-soon" && "Due Soon"}
                             {getDueStatus(emi) === "upcoming" && "Upcoming"}
@@ -343,57 +624,142 @@ function EMITable({ emis, onEdit, onDelete, onPayment, showActions }) {
                         </div>
                       </td>
                     ) : (
-                      <td style={{ verticalAlign: 'top' }}>
+                      <td style={{ 
+                        verticalAlign: 'top',
+                        padding: '15px 10px',
+                        border: 'none'
+                      }}>
                         <div>
-                          <strong>-</strong>
+                          <strong style={{ color: '#6c757d' }}>-</strong>
                           <br />
-                          <small className="text-muted">Full Payment</small>
+                          <small style={{ color: '#6c757d' }}>Full Payment</small>
                         </div>
                       </td>
                     )}
-                    <td style={{ verticalAlign: 'top', wordWrap: 'break-word' }}>
+                    <td style={{ 
+                      verticalAlign: 'top', 
+                      wordWrap: 'break-word',
+                      padding: '15px 10px',
+                      border: 'none'
+                    }}>
                       <div>
-                        <strong>₹{emi.emiAmount.toLocaleString()}</strong>
+                        <strong style={{ 
+                          color: '#00d25b',
+                          fontSize: '1rem',
+                          fontWeight: '700'
+                        }}>
+                          ₹{emi.emiAmount.toLocaleString()}
+                        </strong>
                         <br />
-                        <small className="text-muted">
+                        <small style={{ 
+                          color: '#6c757d',
+                          fontSize: '0.8rem'
+                        }}>
                           Total: ₹{(emi.emiAmount * emi.totalInstallments).toLocaleString()}
                         </small>
                         <br />
-                        <small className="text-muted">
+                        <small style={{ 
+                          color: '#ff8d72',
+                          fontSize: '0.8rem',
+                          fontWeight: '500'
+                        }}>
                           Remaining: ₹{emi.remainingAmount.toLocaleString()}
                         </small>
                       </div>
                     </td>
-                    <td style={{ verticalAlign: 'top' }}>
-                      <Badge color={getStatusColor(emi.status)}>
+                    <td style={{ 
+                      verticalAlign: 'top',
+                      padding: '15px 10px',
+                      border: 'none'
+                    }}>
+                      <Badge 
+                        style={{
+                          fontSize: '0.75rem',
+                          padding: '6px 12px',
+                          borderRadius: '15px',
+                          fontWeight: '600',
+                          textTransform: 'uppercase',
+                          letterSpacing: '0.5px',
+                          background: emi.status === "active" 
+                            ? 'linear-gradient(135deg, #1d8cf8 0%, #0056b3 100%)'
+                            : emi.status === "completed"
+                            ? 'linear-gradient(135deg, #00d25b 0%, #00a854 100%)'
+                            : emi.status === "defaulted"
+                            ? 'linear-gradient(135deg, #ff8d72 0%, #ff6b6b 100%)'
+                            : 'linear-gradient(135deg, #6c757d 0%, #495057 100%)',
+                          color: '#ffffff',
+                          border: 'none',
+                          boxShadow: emi.status === "active" 
+                            ? '0 2px 8px rgba(29, 140, 248, 0.3)'
+                            : emi.status === "completed"
+                            ? '0 2px 8px rgba(0, 210, 91, 0.3)'
+                            : emi.status === "defaulted"
+                            ? '0 2px 8px rgba(255, 141, 114, 0.3)'
+                            : '0 2px 8px rgba(108, 117, 125, 0.3)'
+                        }}
+                      >
                         {emi.status.charAt(0).toUpperCase() + emi.status.slice(1)}
                       </Badge>
                     </td>
                     {showActions && (
-                      <td style={{ verticalAlign: 'top' }}>
+                      <td style={{ 
+                        verticalAlign: 'top',
+                        padding: '15px 10px',
+                        border: 'none'
+                      }}>
                         <Button
-                          color="info"
+                          style={{
+                            background: 'linear-gradient(135deg, #e14eca 0%, #ba54f5 100%)',
+                            border: 'none',
+                            borderRadius: '6px',
+                            padding: '6px 12px',
+                            fontSize: '0.8rem',
+                            fontWeight: '600',
+                            boxShadow: '0 2px 8px rgba(225, 78, 202, 0.3)',
+                            transition: 'all 0.3s ease'
+                          }}
                           size="sm"
                           onClick={() => onEdit(emi)}
                           className="mr-2"
                         >
+                          <i className="tim-icons icon-pencil mr-1"></i>
                           Edit
                         </Button>
                         {emi.status === "active" && (
                           <Button
-                            color="success"
+                            style={{
+                              background: 'linear-gradient(135deg, #00d25b 0%, #00a854 100%)',
+                              border: 'none',
+                              borderRadius: '6px',
+                              padding: '6px 12px',
+                              fontSize: '0.8rem',
+                              fontWeight: '600',
+                              boxShadow: '0 2px 8px rgba(0, 210, 91, 0.3)',
+                              transition: 'all 0.3s ease'
+                            }}
                             size="sm"
                             onClick={() => onPayment(emi)}
                             className="mr-2"
                           >
+                            <i className="tim-icons icon-money-coins mr-1"></i>
                             Pay
                           </Button>
                         )}
                         <Button
-                          color="danger"
+                          style={{
+                            background: 'linear-gradient(135deg, #fd5d93 0%, #ec250d 100%)',
+                            border: 'none',
+                            borderRadius: '6px',
+                            padding: '6px 12px',
+                            fontSize: '0.8rem',
+                            fontWeight: '600',
+                            boxShadow: '0 2px 8px rgba(253, 93, 147, 0.3)',
+                            transition: 'all 0.3s ease'
+                          }}
                           size="sm"
                           onClick={() => onDelete(emi._id)}
                         >
+                          <i className="tim-icons icon-simple-remove mr-1"></i>
                           Delete
                         </Button>
                       </td>

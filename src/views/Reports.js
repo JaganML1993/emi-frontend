@@ -23,7 +23,6 @@ function Reports() {
   const [incomeData, setIncomeData] = useState(null);
   const [emiSummaryData, setEmiSummaryData] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [period, setPeriod] = useState("month");
   const [filters, setFilters] = useState({
     startDate: "",
     endDate: "",
@@ -33,8 +32,10 @@ function Reports() {
   const fetchDashboardData = useCallback(async () => {
     try {
       const token = localStorage.getItem("token");
-      const response = await api.get(`/api/reports/dashboard?period=${period}`, {
+      const params = { ...filters };
+      const response = await api.get("/api/reports/dashboard", {
         headers: { Authorization: `Bearer ${token}` },
+        params,
       });
       setDashboardData(response.data.data);
     } catch (error) {
@@ -42,7 +43,7 @@ function Reports() {
     } finally {
       setLoading(false);
     }
-  }, [period]);
+  }, [filters]);
 
   const fetchSpendingData = useCallback(async () => {
     try {
@@ -226,55 +227,7 @@ function Reports() {
   return (
     <>
       <div className="content">
-        {/* Filters */}
-        <Row>
-          <Col xs="12">
-            <Card>
-              <CardHeader>
-                <CardTitle tag="h4">Report Filters</CardTitle>
-              </CardHeader>
-              <CardBody>
-                <Row>
-                  <Col md="3">
-                    <FormGroup>
-                      <Label>Period</Label>
-                      <Input
-                        type="select"
-                        value={period}
-                        onChange={(e) => setPeriod(e.target.value)}
-                      >
-                        <option value="week">Week</option>
-                        <option value="month">Month</option>
-                        <option value="year">Year</option>
-                      </Input>
-                    </FormGroup>
-                  </Col>
-                  <Col md="3">
-                    <FormGroup>
-                      <Label>Start Date</Label>
-                      <Input
-                        type="date"
-                        value={filters.startDate}
-                        onChange={(e) => handleFilterChange("startDate", e.target.value)}
-                      />
-                    </FormGroup>
-                  </Col>
-                  <Col md="3">
-                    <FormGroup>
-                      <Label>End Date</Label>
-                      <Input
-                        type="date"
-                        value={filters.endDate}
-                        onChange={(e) => handleFilterChange("endDate", e.target.value)}
-                      />
-                    </FormGroup>
-                  </Col>
 
-                </Row>
-              </CardBody>
-            </Card>
-          </Col>
-        </Row>
 
         {/* EMI Payment Summary */}
         <Row>
@@ -433,133 +386,7 @@ function Reports() {
           </Col>
         </Row>
 
-                         {/* EMI Breakdown */}
-        <Row>
-          <Col lg="6" md="12">
-            <Card>
-                             <CardHeader>
-                 <CardTitle tag="h4">EMI Breakdown by Type</CardTitle>
-                 <p className="card-category">
-                   Breakdown of your EMIs by category
-                 </p>
-                 <div className="text-right">
-                                       <button 
-                      className="btn btn-outline-primary btn-sm"
-                      onClick={toggleAllEMIs}
-                    >
-                      {collapsedEMIs.size === 0 ? 'Collapse All' : 'Expand All'}
-                    </button>
-                    <small className="text-muted d-block mt-1">All EMI types are collapsed by default</small>
-                 </div>
-               </CardHeader>
-              <CardBody>
-                {emiSummaryData?.emiBreakdown ? (
-                  <div>
-                                         {emiSummaryData.emiBreakdown.map((type, index) => (
-                       <div key={index} className="mb-3">
-                         <div className="d-flex justify-content-between align-items-center mb-2">
-                           <div className="d-flex align-items-center">
-                             <button 
-                               className="btn btn-link btn-sm p-0 mr-2"
-                               onClick={() => toggleEMICollapse(index)}
-                               style={{ color: '#1d8cf8', textDecoration: 'none' }}
-                             >
-                               <i className={`tim-icons ${collapsedEMIs.has(index) ? 'icon-minimal-down' : 'icon-minimal-up'}`}></i>
-                             </button>
-                             <h6 className="mb-0 text-capitalize">{type.type.replace('_', ' ')}</h6>
-                           </div>
-                           <div>
-                             <span className="badge badge-primary mr-2">{type.count}</span>
-                             {type.emis.some(emi => emi.paymentType === 'full_payment') && (
-                               <span className="badge badge-info">Full Payment</span>
-                             )}
-                           </div>
-                         </div>
-                         <Progress
-                           value={type.totalAmount > 0 ? (type.paidAmount / type.totalAmount) * 100 : 0}
-                           color="success"
-                           className="mb-2"
-                         />
-                         <div className="d-flex justify-content-between small text-muted">
-                           <span>₹{type.paidAmount?.toLocaleString() || "0"}</span>
-                           <span>₹{type.totalAmount?.toLocaleString() || "0"}</span>
-                         </div>
-                         {/* Show EMI details - Collapsible */}
-                         {!collapsedEMIs.has(index) && (
-                           <div className="mt-2">
-                             {type.emis.map((emi, emiIndex) => (
-                               <div key={emiIndex} className="mt-2 p-2 rounded small" style={{ 
-                                 background: 'linear-gradient(135deg, rgba(102, 126, 234, 0.8) 0%, rgba(118, 75, 162, 0.8) 100%)',
-                                 color: 'white',
-                                 boxShadow: '0 4px 15px rgba(0,0,0,0.15)',
-                                 backdropFilter: 'blur(10px)',
-                                 border: '1px solid rgba(255, 255, 255, 0.1)'
-                               }}>
-                                 <div className="d-flex justify-content-between align-items-center">
-                                   <span className="font-weight-bold text-white">{emi.name}</span>
-                                   <span className={`badge badge-${emi.status === 'active' ? 'success' : emi.status === 'completed' ? 'info' : 'warning'}`}>
-                                     {emi.status}
-                                   </span>
-                                 </div>
-                                 <div className="d-flex justify-content-between text-white-50">
-                                   <span>₹{emi.emiAmount?.toLocaleString() || "0"}</span>
-                                   <span>{emi.paymentType === 'full_payment' ? 'Full Payment' : `${emi.paidInstallments}/${emi.totalInstallments} installments`}</span>
-                                 </div>
-                               </div>
-                             ))}
-                           </div>
-                         )}
-                       </div>
-                     ))}
-                  </div>
-                ) : (
-                  <div className="text-center py-4">
-                    <p>No EMI data available</p>
-                  </div>
-                )}
-              </CardBody>
-            </Card>
-          </Col>
-          <Col lg="6" md="12">
-            <Card>
-              <CardHeader>
-                <CardTitle tag="h4">Recent EMI Payments</CardTitle>
-                <p className="card-category">
-                  Your latest EMI payment transactions
-                </p>
-              </CardHeader>
-              <CardBody>
-                {emiSummaryData?.recentEMIPayments ? (
-                  <div>
-                    {emiSummaryData.recentEMIPayments.map((payment, index) => (
-                      <div key={index} className="d-flex justify-content-between align-items-center mb-2 p-2 border rounded">
-                        <div>
-                          <h6 className="mb-0">{payment.description}</h6>
-                          <small className="text-muted">
-                            {format(new Date(payment.date), "MMM dd, yyyy")}
-                          </small>
-                        </div>
-                        <div className="text-right">
-                          <span className={`badge badge-${payment.type === 'income' ? 'success' : 'danger'}`}>
-                            ₹{payment.amount?.toLocaleString() || "0"}
-                          </span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-center py-4">
-                    <p>No recent EMI payments</p>
-                  </div>
-                )}
-              </CardBody>
-            </Card>
-          </Col>
-        </Row>
-
-         
-
-        {/* Monthly Trend Chart */}
+                         {/* Monthly Trend */}
         <Row>
           <Col xs="12">
             <Card>
@@ -599,6 +426,8 @@ function Reports() {
             </Card>
           </Col>
         </Row>
+
+
 
         {/* Spending Analysis */}
         <Row>
@@ -790,60 +619,97 @@ function Reports() {
           </Col>
         </Row>
 
-        {/* Recent Transactions */}
+
+
+        {/* EMI Breakdown by Type */}
         <Row>
           <Col xs="12">
             <Card>
               <CardHeader>
-                <CardTitle tag="h4">Recent Transactions</CardTitle>
+                <CardTitle tag="h4">EMI Breakdown by Type</CardTitle>
                 <p className="card-category">
-                  Your latest financial activities
+                  Breakdown of your EMIs by category
                 </p>
+                <div className="text-right">
+                  <button 
+                    className="btn btn-outline-primary btn-sm"
+                    onClick={toggleAllEMIs}
+                  >
+                    {collapsedEMIs.size === 0 ? 'Collapse All' : 'Expand All'}
+                  </button>
+                  <small className="text-muted d-block mt-1">All EMI types are collapsed by default</small>
+                </div>
               </CardHeader>
               <CardBody>
-                <div className="table-responsive">
-                  <Table style={{ minWidth: '600px' }}>
-                                         <thead>
-                       <tr>
-                         <th>Date</th>
-                         <th>Type</th>
-                         <th>Description</th>
-                         <th>Amount</th>
-                       </tr>
-                     </thead>
-                    <tbody>
-                      {dashboardData?.recentTransactions?.map((transaction) => (
-                        <tr key={transaction._id}>
-                          <td>
-                            {format(new Date(transaction.date), "MMM dd, yyyy")}
-                          </td>
-                          <td>
-                            <Badge
-                              color={
-                                transaction.type === "income" ? "success" : "danger"
-                              }
-                            >
-                              {transaction.type === "income" ? "Income" : "Expense"}
-                            </Badge>
-                          </td>
-                                                     <td>{transaction.description}</td>
-                           <td>
-                            <span
-                              className={
-                                transaction.type === "income"
-                                  ? "text-success"
-                                  : "text-danger"
-                              }
-                              style={{ fontWeight: "bold" }}
-                            >
-                              ₹{transaction.amount.toFixed(2)}
-                            </span>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </Table>
-                </div>
+                {emiSummaryData?.emiBreakdown ? (
+                  <Row>
+                    {emiSummaryData.emiBreakdown.map((type, index) => (
+                      <Col lg="6" md="12" key={index} className="mb-3">
+                        <div className="border rounded p-3 h-100" style={{ 
+                          background: 'linear-gradient(135deg, rgba(29, 140, 248, 0.05) 0%, rgba(118, 75, 162, 0.05) 100%)',
+                          borderColor: 'rgba(29, 140, 248, 0.2) !important'
+                        }}>
+                          <div className="d-flex justify-content-between align-items-center mb-2">
+                            <div className="d-flex align-items-center">
+                              <button 
+                                className="btn btn-link btn-sm p-0 mr-2"
+                                onClick={() => toggleEMICollapse(index)}
+                                style={{ color: '#1d8cf8', textDecoration: 'none' }}
+                              >
+                                <i className={`tim-icons ${collapsedEMIs.has(index) ? 'icon-minimal-down' : 'icon-minimal-up'}`}></i>
+                              </button>
+                              <h6 className="mb-0 text-capitalize">{type.type.replace('_', ' ')}</h6>
+                            </div>
+                            <div>
+                              <span className="badge badge-primary mr-2">{type.count}</span>
+                              {type.emis.some(emi => emi.paymentType === 'full_payment') && (
+                                <span className="badge badge-info">Full Payment</span>
+                              )}
+                            </div>
+                          </div>
+                          <Progress
+                            value={type.totalAmount > 0 ? (type.paidAmount / type.totalAmount) * 100 : 0}
+                            color="success"
+                            className="mb-2"
+                          />
+                          <div className="d-flex justify-content-between small text-muted">
+                            <span>₹{type.paidAmount?.toLocaleString() || "0"}</span>
+                            <span>₹{type.totalAmount?.toLocaleString() || "0"}</span>
+                          </div>
+                          {/* Show EMI details - Collapsible */}
+                          {!collapsedEMIs.has(index) && (
+                            <div className="mt-2">
+                              {type.emis.map((emi, emiIndex) => (
+                                <div key={emiIndex} className="mt-2 p-2 rounded small" style={{ 
+                                  background: 'linear-gradient(135deg, rgba(102, 126, 234, 0.8) 0%, rgba(118, 75, 162, 0.8) 100%)',
+                                  color: 'white',
+                                  boxShadow: '0 4px 15px rgba(0,0,0,0.15)',
+                                  backdropFilter: 'blur(10px)',
+                                  border: '1px solid rgba(255, 255, 255, 0.1)'
+                                }}>
+                                  <div className="d-flex justify-content-between align-items-center">
+                                    <span className="font-weight-bold text-white">{emi.name}</span>
+                                    <span className={`badge badge-${emi.status === 'active' ? 'success' : emi.status === 'completed' ? 'info' : 'warning'}`}>
+                                      {emi.status}
+                                    </span>
+                                  </div>
+                                  <div className="d-flex justify-content-between text-white-50">
+                                    <span>₹{emi.emiAmount?.toLocaleString() || "0"}</span>
+                                    <span>{emi.paymentType === 'full_payment' ? 'Full Payment' : `${emi.paidInstallments}/${emi.totalInstallments} installments`}</span>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      </Col>
+                    ))}
+                  </Row>
+                ) : (
+                  <div className="text-center py-4">
+                    <p>No EMI data available</p>
+                  </div>
+                )}
               </CardBody>
             </Card>
           </Col>

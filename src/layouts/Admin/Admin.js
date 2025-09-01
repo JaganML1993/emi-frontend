@@ -122,8 +122,8 @@ function Admin(props) {
               </Routes>
             </div>
             {
-              // we don't want the Footer to be rendered on map page
-              location.pathname === "/admin/maps" ? null : <Footer fluid />
+              // we don't want the Footer to be rendered on map page and reports page
+              location.pathname === "/admin/maps" || location.pathname === "/admin/reports" ? null : <Footer fluid />
             }
           </div>
           {/* <FixedPlugin bgColor={color} handleBgClick={changeColor} /> */}

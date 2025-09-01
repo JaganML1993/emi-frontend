@@ -83,7 +83,10 @@ function RecordEMIPayment() {
 
       setSuccess("EMI payment recorded successfully!");
       setTimeout(() => {
-        navigate("/admin/emis");
+        // Navigate back and force a refresh
+        navigate("/admin/emis", { replace: true });
+        // Force a page reload to ensure fresh data
+        window.location.reload();
       }, 1500);
     } catch (error) {
       setError(error.response?.data?.message || "Failed to record EMI payment");

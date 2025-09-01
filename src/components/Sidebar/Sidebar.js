@@ -40,6 +40,29 @@ function Sidebar(props) {
   const activeRoute = (routeName) => {
     return location.pathname === routeName ? "active" : "";
   };
+  
+  // Check if current path matches the route
+  const isCurrentRoute = (path) => {
+    const currentPath = location.pathname;
+    const routePath = props.layout + path;
+    
+    // Check exact match first
+    if (currentPath === routePath) {
+      return true;
+    }
+    
+    // Check if current path starts with the route path (for nested routes)
+    if (currentPath.startsWith(routePath + '/')) {
+      return true;
+    }
+    
+    // Special case for dashboard (root path)
+    if (path === '/dashboard' && (currentPath === '/admin' || currentPath === '/admin/')) {
+      return true;
+    }
+    
+    return false;
+  };
   React.useEffect(() => {
     if (navigator.platform.indexOf("Win") > -1) {
       ps = new PerfectScrollbar(sidebarRef.current, {
@@ -110,33 +133,80 @@ function Sidebar(props) {
   return (
     <BackgroundColorContext.Consumer>
       {({ color }) => (
-        <div className="sidebar" data={color}>
-          <div className="sidebar-wrapper" ref={sidebarRef}>
+        <div className="sidebar" data={color} style={{
+          background: 'linear-gradient(135deg, #1e1e2d 0%, #2d2b42 100%)',
+          boxShadow: '0 8px 32px rgba(0, 0, 0, 0.4), 0 4px 16px rgba(0, 0, 0, 0.2)',
+          border: '1px solid rgba(255, 255, 255, 0.1)',
+          backdropFilter: 'blur(20px)'
+        }}>
+          <div className="sidebar-wrapper" ref={sidebarRef} style={{
+            background: 'transparent'
+          }}>
             {logoImg !== null || logoText !== null ? (
-              <div className="logo">
+              <div className="logo" style={{
+                padding: '20px 15px',
+                borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
+                marginBottom: '10px'
+              }}>
                 {logoImg}
                 {logoText}
               </div>
             ) : null}
-            <Nav>
+            <Nav style={{ padding: '0 15px' }}>
               {routes
                 .filter(route => !route.hidden) // Filter out hidden routes
                 .map((prop, key) => {
                 if (prop.redirect) return null;
+                const isActive = isCurrentRoute(prop.path);
                 return (
                   <li
                     className={
                       activeRoute(prop.path) + (prop.pro ? " active-pro" : "")
                     }
                     key={key}
+                    style={{
+                      marginBottom: '8px',
+                      borderRadius: '12px',
+                      overflow: 'hidden',
+                      transition: 'all 0.3s ease'
+                    }}
                   >
                     <NavLink
                       to={prop.layout + prop.path}
                       className="nav-link"
                       onClick={props.toggleSidebar}
+                      style={{
+                        background: isActive ? 'linear-gradient(135deg, rgba(0, 210, 91, 0.4) 0%, rgba(0, 191, 154, 0.2) 100%)' : 'transparent',
+                        border: isActive ? '2px solid rgba(0, 210, 91, 0.8)' : '1px solid transparent',
+                        borderRadius: '12px',
+                        padding: '12px 15px',
+                        color: isActive ? '#00d25b' : '#ffffff',
+                        fontWeight: isActive ? '700' : '400',
+                        transition: 'all 0.3s ease',
+                        display: 'flex',
+                        alignItems: 'center',
+                        textDecoration: 'none',
+                        boxShadow: isActive ? '0 8px 25px rgba(0, 210, 91, 0.4)' : 'none',
+                        position: 'relative'
+                      }}
+
                     >
-                      <i className={prop.icon} />
-                      <p>{prop.name}</p>
+                      <i className={prop.icon} style={{ 
+                        marginRight: '12px',
+                        fontSize: '1.1rem',
+                        color: isActive ? '#00d25b' : '#ffffff',
+                        opacity: isActive ? '1' : '0.8',
+                        position: 'relative',
+                        zIndex: '2'
+                      }} />
+                      <p style={{ 
+                        margin: '0',
+                        fontSize: '0.9rem',
+                        color: isActive ? '#00d25b' : '#ffffff',
+                        opacity: isActive ? '1' : '0.8',
+                        position: 'relative',
+                        zIndex: '2'
+                      }}>{prop.name}</p>
                     </NavLink>
                   </li>
                 );
