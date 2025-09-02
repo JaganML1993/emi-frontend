@@ -44,53 +44,107 @@ function Dashboard() {
       const token = localStorage.getItem("token");
       if (!token) return;
 
-      const response = await api.get("/api/reports/upcoming-payments", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      // Get current month date range
+      const now = new Date();
+      const currentMonth = now.getMonth();
+      const currentYear = now.getFullYear();
+      const startOfMonth = new Date(currentYear, currentMonth, 1);
+      const endOfMonth = new Date(currentYear, currentMonth + 1, 0);
+
+      // Fetch both EMI data and current month transactions
+      const [emisResponse, transactionsResponse] = await Promise.all([
+        api.get("/api/emis", {
+          headers: { Authorization: `Bearer ${token}` },
+        }),
+        api.get(`/api/transactions?startDate=${startOfMonth.toISOString()}&endDate=${endOfMonth.toISOString()}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        })
+      ]);
       
-      if (response.data.success && response.data.data.emiBreakdown) {
+      if (emisResponse.data.success && emisResponse.data.data) {
         const payments = [];
-        response.data.data.emiBreakdown.forEach(type => {
-          type.emis.forEach(emi => {
-            // Include all EMIs except full payment type, including savings_emi
-            // For savings_emi, also check if they have a nextDueDate or use endDate as fallback
-            const hasValidDate = emi.nextDueDate || (type.type === 'savings_emi' && emi.endDate);
-            if (emi.status === 'active' && hasValidDate && emi.paymentType !== 'full_payment') {
-              // Use nextDueDate if available, otherwise use endDate for savings_emi
-              const dateToUse = emi.nextDueDate || (type.type === 'savings_emi' ? emi.endDate : null);
-              if (!dateToUse) return; // Skip if no valid date
+        const currentMonthTransactions = transactionsResponse.data.success ? transactionsResponse.data.data : [];
+        
+        // Create a set of EMI names that have transactions in current month
+        const paidEMIsThisMonth = new Set();
+        
+        currentMonthTransactions.forEach(transaction => {
+          if (transaction.type === 'expense' && transaction.description) {
+            // Check for various EMI payment patterns
+            if (transaction.description.includes('EMI Payment:') || 
+                transaction.description.includes('installment') ||
+                transaction.description.includes('Cheetu') ||
+                transaction.description.includes('Cashe') ||
+                transaction.description.includes('True Balance') ||
+                transaction.description.includes('Sangam') ||
+                transaction.description.includes('Suresh')) {
               
-              const dueDate = new Date(dateToUse);
-              const today = new Date();
-              // Reset time to start of day for accurate comparison
-              today.setHours(0, 0, 0, 0);
-              dueDate.setHours(0, 0, 0, 0);
-              const daysUntilDue = Math.ceil((dueDate - today) / (1000 * 60 * 60 * 24));
+              // Extract EMI name from description
+              let emiName = null;
+              if (transaction.description.includes('EMI Payment:')) {
+                const match = transaction.description.match(/EMI Payment: (.+)/);
+                if (match) {
+                  emiName = match[1].trim();
+                }
+              } else {
+                // For other patterns, try to extract the EMI name
+                emiName = transaction.description.replace(/installment|EMI|Payment/gi, '').trim();
+              }
               
-              // Get current month end date
-              const currentMonthEnd = new Date(today.getFullYear(), today.getMonth() + 1, 0);
-              const daysUntilMonthEnd = Math.ceil((currentMonthEnd - today) / (1000 * 60 * 60 * 24));
-              
-              if (daysUntilDue <= 0 || (daysUntilDue > 0 && daysUntilDue <= daysUntilMonthEnd)) { // Show overdue payments and current month payments only
-                payments.push({
-                  name: emi.name,
-                  dueDate: dateToUse,
-                  amount: emi.emiAmount,
-                  daysUntilDue: daysUntilDue,
-                  type: type.type,
-                  isIncome: type.type === 'income_emi' || type.type === 'savings_emi' || type.type.includes('income') || type.type.includes('savings') // Flag for income EMIs
-                });
+              if (emiName) {
+                paidEMIsThisMonth.add(emiName.toLowerCase());
               }
             }
+          }
+        });
+        
+        emisResponse.data.data.forEach(emi => {
+          // Skip completed EMIs
+          if (emi.status === 'completed') return;
+          
+          // Skip full payment EMIs
+          if (emi.paymentType === 'full_payment') return;
+          
+          // Skip EMIs that have been paid this month
+          if (paidEMIsThisMonth.has(emi.name.toLowerCase())) return;
+          
+          const dateToUse = emi.nextDueDate || emi.endDate;
+          if (!dateToUse) return; // Skip if no valid date
+          
+          const dueDate = new Date(dateToUse);
+          const today = new Date();
+          // Reset time to start of day for accurate comparison
+          today.setHours(0, 0, 0, 0);
+          dueDate.setHours(0, 0, 0, 0);
+          const daysUntilDue = Math.ceil((dueDate - today) / (1000 * 60 * 60 * 24));
+          
+          payments.push({
+            name: emi.name,
+            dueDate: dateToUse,
+            amount: emi.emiAmount,
+            daysUntilDue: daysUntilDue,
+            type: emi.type,
+            status: emi.status,
+            paymentType: emi.paymentType,
+            isIncome: emi.type === 'income_emi' || emi.type === 'savings_emi' || emi.type.includes('income') || emi.type.includes('savings'),
+            progress: emi.paidInstallments && emi.totalInstallments ? (emi.paidInstallments / emi.totalInstallments) * 100 : 0,
+            paidInstallments: emi.paidInstallments || 0,
+            totalInstallments: emi.totalInstallments || 0,
+            remainingAmount: emi.remainingAmount || 0
           });
         });
         
-        // Sort by due date (earliest first)
-        payments.sort((a, b) => a.daysUntilDue - b.daysUntilDue);
+        // Sort by due date (earliest first), then by status (overdue first)
+        payments.sort((a, b) => {
+          if (a.daysUntilDue < 0 && b.daysUntilDue >= 0) return -1;
+          if (a.daysUntilDue >= 0 && b.daysUntilDue < 0) return 1;
+          return a.daysUntilDue - b.daysUntilDue;
+        });
+        
         setUpcomingPayments(payments);
       }
     } catch (error) {
-      console.error("Error fetching upcoming payments:", error);
+      console.error("Error fetching EMI payments:", error);
     }
   }, []);
 
@@ -342,100 +396,197 @@ function Dashboard() {
               boxShadow: '0 4px 20px rgba(0, 0, 0, 0.3)',
               transition: 'all 0.3s ease'
             }}>
-              <CardHeader className="border-0 py-3" style={{ background: 'transparent' }}>
-                <CardTitle tag="h5" className="mb-1" style={{ 
+              <CardHeader className="border-0 py-4" style={{ background: 'transparent' }}>
+                <CardTitle tag="h5" className="mb-2" style={{ 
                   fontWeight: '700',
                   color: '#ffffff',
-                  fontSize: '1.25rem'
+                  fontSize: '1.4rem',
+                  textShadow: '0 2px 4px rgba(0, 0, 0, 0.3)'
                 }}>
-                  <i className="tim-icons icon-bell-55 mr-2" style={{ color: '#8B5CF6' }} />
+                  <i className="tim-icons icon-bell-55 mr-3" style={{ 
+                    color: '#8B5CF6',
+                    fontSize: '1.2rem',
+                    filter: 'drop-shadow(0 2px 4px rgba(139, 92, 246, 0.4))'
+                  }} />
                   Upcoming Payments
                 </CardTitle>
-                <small className="text-white-50" style={{ fontSize: '0.875rem' }}>Overdue and upcoming EMI payments</small>
+                <small className="text-white-50" style={{ 
+                  fontSize: '0.9rem',
+                  opacity: 0.8,
+                  fontWeight: '500'
+                }}>All EMI payments with progress and due dates</small>
               </CardHeader>
               <CardBody className="py-3">
                 {upcomingPayments.length > 0 ? (
                   <Row>
                     {upcomingPayments.map((payment, index) => (
-                      <Col key={index} xs="12" sm="6" className="mb-1">
-                        <div className="d-flex align-items-center p-2 rounded" style={{ 
-                          background: payment.isIncome ? 'linear-gradient(135deg, rgba(34, 197, 94, 0.2) 0%, rgba(22, 163, 74, 0.1) 100%)' : 
-                                   payment.daysUntilDue < 0 ? 'linear-gradient(135deg, rgba(239, 68, 68, 0.2) 0%, rgba(220, 38, 38, 0.1) 100%)' : 
-                                   payment.daysUntilDue <= 7 ? 'linear-gradient(135deg, rgba(239, 68, 68, 0.2) 0%, rgba(220, 38, 38, 0.1) 100%)' : 
-                                   payment.daysUntilDue <= 14 ? 'linear-gradient(135deg, rgba(245, 158, 11, 0.2) 0%, rgba(217, 119, 6, 0.1) 100%)' : 
-                                   'linear-gradient(135deg, rgba(139, 92, 246, 0.2) 0%, rgba(124, 58, 237, 0.1) 100%)',
+                      <Col key={index} xs="12" sm="6" className="mb-3">
+                        <div className="d-flex align-items-center p-3 rounded" style={{ 
+                          background: payment.isIncome ? 'linear-gradient(135deg, rgba(34, 197, 94, 0.25) 0%, rgba(22, 163, 74, 0.15) 100%)' : 
+                                   payment.daysUntilDue < 0 ? 'linear-gradient(135deg, rgba(239, 68, 68, 0.25) 0%, rgba(220, 38, 38, 0.15) 100%)' : 
+                                   payment.daysUntilDue <= 7 ? 'linear-gradient(135deg, rgba(239, 68, 68, 0.25) 0%, rgba(220, 38, 38, 0.15) 100%)' : 
+                                   payment.daysUntilDue <= 14 ? 'linear-gradient(135deg, rgba(245, 158, 11, 0.25) 0%, rgba(217, 119, 6, 0.15) 100%)' : 
+                                   'linear-gradient(135deg, rgba(139, 92, 246, 0.25) 0%, rgba(124, 58, 237, 0.15) 100%)',
                           color: payment.isIncome ? '#22C55E' : payment.daysUntilDue < 0 ? '#EF4444' : payment.daysUntilDue <= 7 ? '#EF4444' : payment.daysUntilDue <= 14 ? '#F59E0B' : '#8B5CF6', 
-                          height: '45px',
-                                                      border: `1px solid ${payment.isIncome ? 'rgba(34, 197, 94, 0.4)' : payment.daysUntilDue < 0 ? 'rgba(239, 68, 68, 0.4)' : payment.daysUntilDue <= 7 ? 'rgba(239, 68, 68, 0.4)' : payment.daysUntilDue <= 14 ? 'rgba(245, 158, 11, 0.4)' : 'rgba(139, 92, 246, 0.4)'}`,
-                          borderRadius: '8px',
-                          boxShadow: '0 2px 8px rgba(0, 0, 0, 0.2)',
-                          transition: 'all 0.3s ease',
-                          cursor: 'pointer'
+                          height: '55px',
+                          border: `2px solid ${payment.isIncome ? 'rgba(34, 197, 94, 0.5)' : payment.daysUntilDue < 0 ? 'rgba(239, 68, 68, 0.5)' : payment.daysUntilDue <= 7 ? 'rgba(239, 68, 68, 0.5)' : payment.daysUntilDue <= 14 ? 'rgba(245, 158, 11, 0.5)' : 'rgba(139, 92, 246, 0.5)'}`,
+                          borderRadius: '12px',
+                          boxShadow: `0 4px 16px ${payment.isIncome ? 'rgba(34, 197, 94, 0.3)' : payment.daysUntilDue < 0 ? 'rgba(239, 68, 68, 0.3)' : payment.daysUntilDue <= 7 ? 'rgba(239, 68, 68, 0.3)' : payment.daysUntilDue <= 14 ? 'rgba(245, 158, 11, 0.3)' : 'rgba(139, 92, 246, 0.3)'}, 0 2px 8px rgba(0, 0, 0, 0.2)`,
+                          transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                          cursor: 'pointer',
+                          backdropFilter: 'blur(8px)',
+                          position: 'relative',
+                          overflow: 'hidden'
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.transform = 'translateY(-2px)';
+                          e.currentTarget.style.boxShadow = `0 8px 24px ${payment.isIncome ? 'rgba(34, 197, 94, 0.4)' : payment.daysUntilDue < 0 ? 'rgba(239, 68, 68, 0.4)' : payment.daysUntilDue <= 7 ? 'rgba(239, 68, 68, 0.4)' : payment.daysUntilDue <= 14 ? 'rgba(245, 158, 11, 0.4)' : 'rgba(139, 92, 246, 0.4)'}, 0 4px 16px rgba(0, 0, 0, 0.3)`;
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.transform = 'translateY(0)';
+                          e.currentTarget.style.boxShadow = `0 4px 16px ${payment.isIncome ? 'rgba(34, 197, 94, 0.3)' : payment.daysUntilDue < 0 ? 'rgba(239, 68, 68, 0.3)' : payment.daysUntilDue <= 7 ? 'rgba(239, 68, 68, 0.3)' : payment.daysUntilDue <= 14 ? 'rgba(245, 158, 11, 0.3)' : 'rgba(139, 92, 246, 0.3)'}, 0 2px 8px rgba(0, 0, 0, 0.2)`;
                         }}>
-                          <div className="mr-2">
-                            <i className={`tim-icons icon-${payment.isIncome ? 'money-coins' : payment.type === 'savings_emi' ? 'money-coins' : 'credit-card'}`} style={{ color: payment.isIncome ? '#22C55E' : payment.daysUntilDue < 0 ? '#EF4444' : payment.daysUntilDue <= 7 ? '#EF4444' : payment.daysUntilDue <= 14 ? '#F59E0B' : '#8B5CF6', fontSize: '0.7rem' }} />
+                          <div className="mr-3">
+                            <div style={{
+                              background: payment.isIncome ? 'linear-gradient(135deg, #22C55E 0%, #16A34A 100%)' : 
+                                         payment.daysUntilDue < 0 ? 'linear-gradient(135deg, #EF4444 0%, #DC2626 100%)' : 
+                                         payment.daysUntilDue <= 7 ? 'linear-gradient(135deg, #EF4444 0%, #DC2626 100%)' : 
+                                         payment.daysUntilDue <= 14 ? 'linear-gradient(135deg, #F59E0B 0%, #D97706 100%)' : 
+                                         'linear-gradient(135deg, #8B5CF6 0%, #7C3AED 100%)',
+                              borderRadius: '50%',
+                              width: '32px',
+                              height: '32px',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              boxShadow: `0 2px 8px ${payment.isIncome ? 'rgba(34, 197, 94, 0.4)' : payment.daysUntilDue < 0 ? 'rgba(239, 68, 68, 0.4)' : payment.daysUntilDue <= 7 ? 'rgba(239, 68, 68, 0.4)' : payment.daysUntilDue <= 14 ? 'rgba(245, 158, 11, 0.4)' : 'rgba(139, 92, 246, 0.4)'}`
+                            }}>
+                              <i className={`tim-icons icon-${payment.isIncome ? 'money-coins' : payment.type === 'savings_emi' ? 'money-coins' : 'credit-card'}`} style={{ 
+                                color: '#ffffff', 
+                                fontSize: '0.9rem',
+                                filter: 'drop-shadow(0 1px 2px rgba(0, 0, 0, 0.3))'
+                              }} />
+                            </div>
                           </div>
-                          <div className="flex-grow-1 mr-2" style={{ minWidth: '0' }}>
-                            <div className="d-flex align-items-center">
+                          <div className="flex-grow-1 mr-3" style={{ minWidth: '0' }}>
+                            <div className="d-flex flex-column">
                               <span style={{ 
-                                fontSize: '0.75rem', 
-                                fontWeight: '600',
+                                fontSize: '0.85rem', 
+                                fontWeight: '700',
                                 color: payment.isIncome ? '#22C55E' : payment.daysUntilDue < 0 ? '#EF4444' : payment.daysUntilDue <= 7 ? '#EF4444' : payment.daysUntilDue <= 14 ? '#F59E0B' : '#8B5CF6',
                                 whiteSpace: 'nowrap',
                                 overflow: 'hidden',
-                                textOverflow: 'ellipsis'
+                                textOverflow: 'ellipsis',
+                                textShadow: '0 1px 2px rgba(0, 0, 0, 0.3)',
+                                lineHeight: '1.2'
                               }}>
                                 {payment.name}
                               </span>
-                              <span className="ml-1" style={{ 
-                                fontSize: '0.6rem', 
+                              <span style={{ 
+                                fontSize: '0.65rem', 
                                 color: payment.isIncome ? '#22C55E' : payment.daysUntilDue < 0 ? '#EF4444' : payment.daysUntilDue <= 7 ? '#EF4444' : payment.daysUntilDue <= 14 ? '#F59E0B' : '#8B5CF6', 
-                                opacity: 0.7 
+                                opacity: 0.9,
+                                fontWeight: '600',
+                                textTransform: 'capitalize'
                               }}>
-                                ({payment.isIncome ? 'Income' : payment.type.replace('_', ' ')})
+                                {payment.isIncome ? 'Income EMI' : payment.type.replace('_', ' ')}
                               </span>
                             </div>
                           </div>
-                          <div className="mr-2 text-center">
-                            <span className={`badge badge-${payment.daysUntilDue < 0 ? 'danger' : payment.daysUntilDue <= 7 ? 'danger' : payment.daysUntilDue <= 14 ? 'warning' : 'info'}`} style={{ 
-                              fontSize: '0.55rem',
-                              padding: '2px 6px',
-                              borderRadius: '10px'
+                          <div className="mr-3 text-center">
+                            <div style={{
+                              background: payment.daysUntilDue < 0 ? 'linear-gradient(135deg, #EF4444 0%, #DC2626 100%)' : 
+                                         payment.daysUntilDue <= 7 ? 'linear-gradient(135deg, #EF4444 0%, #DC2626 100%)' : 
+                                         payment.daysUntilDue <= 14 ? 'linear-gradient(135deg, #F59E0B 0%, #D97706 100%)' : 
+                                         'linear-gradient(135deg, #8B5CF6 0%, #7C3AED 100%)',
+                              borderRadius: '12px',
+                              padding: '4px 8px',
+                              boxShadow: `0 2px 6px ${payment.daysUntilDue < 0 ? 'rgba(239, 68, 68, 0.4)' : payment.daysUntilDue <= 7 ? 'rgba(239, 68, 68, 0.4)' : payment.daysUntilDue <= 14 ? 'rgba(245, 158, 11, 0.4)' : 'rgba(139, 92, 246, 0.4)'}`
                             }}>
-                              {payment.daysUntilDue < 0 ? 'Overdue' : 
-                               payment.daysUntilDue === 0 ? 'Today' : 
-                               payment.daysUntilDue === 1 ? 'Tomorrow' : 
-                               `${payment.daysUntilDue}d`}
-                            </span>
+                              <span style={{ 
+                                fontSize: '0.65rem',
+                                fontWeight: '700',
+                                color: '#ffffff',
+                                textShadow: '0 1px 2px rgba(0, 0, 0, 0.3)'
+                              }}>
+                                {payment.daysUntilDue < 0 ? 'Overdue' : 
+                                 payment.daysUntilDue === 0 ? 'Today' : 
+                                 payment.daysUntilDue === 1 ? 'Tomorrow' : 
+                                 `${payment.daysUntilDue}d`}
+                              </span>
+                            </div>
                           </div>
-                          <div className="mr-2 text-center">
-                            <small style={{ 
-                              color: payment.isIncome ? '#22C55E' : payment.daysUntilDue < 0 ? '#EF4444' : payment.daysUntilDue <= 7 ? '#EF4444' : payment.daysUntilDue <= 14 ? '#F59E0B' : '#6366F1', 
-                              opacity: 0.8, 
-                              fontSize: '0.6rem',
-                              fontWeight: '500'
+                          <div className="mr-3 text-center">
+                            <div style={{
+                              background: 'rgba(255, 255, 255, 0.1)',
+                              borderRadius: '8px',
+                              padding: '4px 8px',
+                              backdropFilter: 'blur(4px)'
                             }}>
-                              {format(new Date(payment.dueDate), "MMM dd")}
-                            </small>
+                              <small style={{ 
+                                color: '#ffffff', 
+                                fontSize: '0.65rem',
+                                fontWeight: '600',
+                                textShadow: '0 1px 2px rgba(0, 0, 0, 0.3)'
+                              }}>
+                                {format(new Date(payment.dueDate), "MMM dd")}
+                              </small>
+                            </div>
                           </div>
                           <div className="text-center">
-                            <span style={{ 
-                              fontSize: '0.8rem', 
-                              fontWeight: '700',
-                              color: payment.isIncome ? '#22C55E' : payment.daysUntilDue < 0 ? '#EF4444' : payment.daysUntilDue <= 7 ? '#EF4444' : payment.daysUntilDue <= 14 ? '#F59E0B' : '#6366F1'
+                            <div style={{
+                              background: payment.isIncome ? 'linear-gradient(135deg, rgba(34, 197, 94, 0.2) 0%, rgba(22, 163, 74, 0.1) 100%)' : 
+                                         'linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0.05) 100%)',
+                              borderRadius: '10px',
+                              padding: '6px 12px',
+                              border: `1px solid ${payment.isIncome ? 'rgba(34, 197, 94, 0.3)' : 'rgba(255, 255, 255, 0.2)'}`,
+                              backdropFilter: 'blur(4px)'
                             }}>
-                              ₹{payment.amount?.toLocaleString() || "0"}
-                            </span>
+                              <span style={{ 
+                                fontSize: '0.9rem', 
+                                fontWeight: '800',
+                                color: payment.isIncome ? '#22C55E' : '#ffffff',
+                                textShadow: '0 1px 2px rgba(0, 0, 0, 0.3)'
+                              }}>
+                                ₹{payment.amount?.toLocaleString() || "0"}
+                              </span>
+                            </div>
                           </div>
                         </div>
                       </Col>
                     ))}
                   </Row>  
                 ) : (
-                  <div className="text-center py-2">
-                    <i className="tim-icons icon-check-2 text-success" style={{ fontSize: '1.5rem' }} />
-                    <h6 className="mt-1 mb-1" style={{ fontSize: '0.9rem', color: '#22C55E' }}>No upcoming payments</h6>
-                    <small className="text-white-50" style={{ fontSize: '0.75rem' }}>You're all caught up!</small>
+                  <div className="text-center py-5">
+                    <div style={{
+                      background: 'linear-gradient(135deg, rgba(34, 197, 94, 0.2) 0%, rgba(22, 163, 74, 0.1) 100%)',
+                      borderRadius: '50%',
+                      width: '80px',
+                      height: '80px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      margin: '0 auto 20px',
+                      boxShadow: '0 8px 24px rgba(34, 197, 94, 0.3)'
+                    }}>
+                      <i className="tim-icons icon-check-2" style={{ 
+                        fontSize: '2rem', 
+                        color: '#22C55E',
+                        filter: 'drop-shadow(0 2px 4px rgba(34, 197, 94, 0.4))'
+                      }} />
+                    </div>
+                    <h6 className="mt-2 mb-2" style={{ 
+                      fontSize: '1.1rem', 
+                      color: '#22C55E',
+                      fontWeight: '700',
+                      textShadow: '0 1px 2px rgba(0, 0, 0, 0.3)'
+                    }}>No upcoming payments</h6>
+                    <small style={{ 
+                      fontSize: '0.85rem', 
+                      color: '#ffffff',
+                      opacity: 0.8,
+                      fontWeight: '500'
+                    }}>You're all caught up! 🎉</small>
                   </div>
                 )}
               </CardBody>
