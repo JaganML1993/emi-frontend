@@ -472,7 +472,7 @@ function Dashboard() {
                             <div className="d-flex flex-column">
                               <span style={{ 
                                 fontSize: '0.85rem', 
-                                fontWeight: '700',
+                                fontWeight: '600',
                                 color: payment.isIncome ? '#22C55E' : payment.daysUntilDue < 0 ? '#EF4444' : payment.daysUntilDue <= 7 ? '#EF4444' : payment.daysUntilDue <= 14 ? '#F59E0B' : '#8B5CF6',
                                 whiteSpace: 'nowrap',
                                 overflow: 'hidden',
@@ -486,69 +486,26 @@ function Dashboard() {
                                 fontSize: '0.65rem', 
                                 color: payment.isIncome ? '#22C55E' : payment.daysUntilDue < 0 ? '#EF4444' : payment.daysUntilDue <= 7 ? '#EF4444' : payment.daysUntilDue <= 14 ? '#F59E0B' : '#8B5CF6', 
                                 opacity: 0.9,
-                                fontWeight: '600',
-                                textTransform: 'capitalize'
+                                fontWeight: '500'
                               }}>
-                                {payment.isIncome ? 'Income EMI' : payment.type.replace('_', ' ')}
+                                {(payment.daysUntilDue < 0 ? 'Overdue' : 
+                                  payment.daysUntilDue === 0 ? 'Today' : 
+                                  payment.daysUntilDue === 1 ? 'Tomorrow' : 
+                                  `${payment.daysUntilDue}d`) + ' • ' + format(new Date(payment.dueDate), "MMM dd")}
                               </span>
                             </div>
                           </div>
-                          <div className="mr-3 text-center">
-                            <div style={{
-                              background: payment.daysUntilDue < 0 ? 'linear-gradient(135deg, #EF4444 0%, #DC2626 100%)' : 
-                                         payment.daysUntilDue <= 7 ? 'linear-gradient(135deg, #EF4444 0%, #DC2626 100%)' : 
-                                         payment.daysUntilDue <= 14 ? 'linear-gradient(135deg, #F59E0B 0%, #D97706 100%)' : 
-                                         'linear-gradient(135deg, #8B5CF6 0%, #7C3AED 100%)',
-                              borderRadius: '12px',
-                              padding: '4px 8px',
-                              boxShadow: `0 2px 6px ${payment.daysUntilDue < 0 ? 'rgba(239, 68, 68, 0.4)' : payment.daysUntilDue <= 7 ? 'rgba(239, 68, 68, 0.4)' : payment.daysUntilDue <= 14 ? 'rgba(245, 158, 11, 0.4)' : 'rgba(139, 92, 246, 0.4)'}`
-                            }}>
+                          
+                          <div className="ml-auto text-right">
+                            <div style={{ background: 'transparent', padding: 0, border: 'none', boxShadow: 'none' }}>
                               <span style={{ 
-                                fontSize: '0.65rem',
-                                fontWeight: '700',
-                                color: '#ffffff',
-                                textShadow: '0 1px 2px rgba(0, 0, 0, 0.3)'
+                                fontSize: '1rem', 
+                                fontWeight: 700,
+                                color: payment.isIncome ? '#22C55E' : payment.daysUntilDue < 0 ? '#EF4444' : payment.daysUntilDue <= 7 ? '#EF4444' : payment.daysUntilDue <= 14 ? '#F59E0B' : '#8B5CF6',
+                                letterSpacing: '0.2px',
+                                fontFeatureSettings: '"tnum" 1, "lnum" 1'
                               }}>
-                                {payment.daysUntilDue < 0 ? 'Overdue' : 
-                                 payment.daysUntilDue === 0 ? 'Today' : 
-                                 payment.daysUntilDue === 1 ? 'Tomorrow' : 
-                                 `${payment.daysUntilDue}d`}
-                              </span>
-                            </div>
-                          </div>
-                          <div className="mr-3 text-center">
-                            <div style={{
-                              background: 'rgba(255, 255, 255, 0.1)',
-                              borderRadius: '8px',
-                              padding: '4px 8px',
-                              backdropFilter: 'blur(4px)'
-                            }}>
-                              <small style={{ 
-                                color: '#ffffff', 
-                                fontSize: '0.65rem',
-                                fontWeight: '600',
-                                textShadow: '0 1px 2px rgba(0, 0, 0, 0.3)'
-                              }}>
-                                {format(new Date(payment.dueDate), "MMM dd")}
-                              </small>
-                            </div>
-                          </div>
-                          <div className="text-center">
-                            <div style={{
-                              background: payment.isIncome ? 'linear-gradient(135deg, rgba(34, 197, 94, 0.2) 0%, rgba(22, 163, 74, 0.1) 100%)' : 
-                                         'linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0.05) 100%)',
-                              borderRadius: '10px',
-                              padding: '6px 12px',
-                              border: `1px solid ${payment.isIncome ? 'rgba(34, 197, 94, 0.3)' : 'rgba(255, 255, 255, 0.2)'}`,
-                              backdropFilter: 'blur(4px)'
-                            }}>
-                              <span style={{ 
-                                fontSize: '0.9rem', 
-                                fontWeight: '800',
-                                color: payment.isIncome ? '#22C55E' : '#ffffff',
-                                textShadow: '0 1px 2px rgba(0, 0, 0, 0.3)'
-                              }}>
-                                ₹{payment.amount?.toLocaleString() || "0"}
+                                ₹{payment.amount?.toLocaleString() || '0'}
                               </span>
                             </div>
                           </div>

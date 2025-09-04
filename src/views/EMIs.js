@@ -41,6 +41,8 @@ const getStatusColor = (status) => {
 
 const getTypeIcon = (type) => {
   switch (type) {
+    case "rent":
+      return "tim-icons icon-home";
     case "car_loan":
       return "tim-icons icon-delivery-fast";
     case "bike_emi":
@@ -62,6 +64,8 @@ const getTypeIcon = (type) => {
 
 const getTypeDisplayName = (type) => {
   switch (type) {
+    case "rent":
+      return "Rent";
     case "personal_loan":
       return "Personal Loan";
     case "mobile_emi":
@@ -94,6 +98,9 @@ const getTypeDisplayName = (type) => {
 };
 
 const calculateProgress = (emi) => {
+  if (emi.paymentType === 'subscription' || !emi.totalInstallments) {
+    return 0;
+  }
   return (emi.paidInstallments / emi.totalInstallments) * 100;
 };
 
@@ -567,11 +574,11 @@ function EMITable({ emis, onEdit, onDelete, onPayment, showActions }) {
                           display: 'block',
                           lineHeight: '1.1'
                         }}>
-                          {emi.paidInstallments}/{emi.totalInstallments}
+                          {emi.paymentType === 'subscription' ? `${emi.paidInstallments || 0}/—` : `${emi.paidInstallments}/${emi.totalInstallments}`}
                         </small>
                       </div>
                     </td>
-                    {emi.paymentType === 'emi' ? (
+                    {(emi.paymentType === 'emi' || emi.paymentType === 'subscription') ? (
                       <td style={{ 
                         verticalAlign: 'middle',
                         padding: '8px 6px',
@@ -638,22 +645,26 @@ function EMITable({ emis, onEdit, onDelete, onPayment, showActions }) {
                           ₹{emi.emiAmount.toLocaleString()}
                         </strong>
                         <br />
-                        <small style={{ 
-                          color: '#6c757d',
-                          fontSize: '0.65rem',
-                          lineHeight: '1.1'
-                        }}>
-                          Total: ₹{(emi.emiAmount * emi.totalInstallments).toLocaleString()}
-                        </small>
-                        <br />
-                        <small style={{ 
-                          color: '#ff8d72',
-                          fontSize: '0.65rem',
-                          fontWeight: '500',
-                          lineHeight: '1.1'
-                        }}>
-                          Remaining: ₹{emi.remainingAmount.toLocaleString()}
-                        </small>
+                        {emi.paymentType !== 'subscription' && (
+                          <>
+                            <small style={{ 
+                              color: '#6c757d',
+                              fontSize: '0.65rem',
+                              lineHeight: '1.1'
+                            }}>
+                              Total: ₹{(emi.emiAmount * emi.totalInstallments).toLocaleString()}
+                            </small>
+                            <br />
+                            <small style={{ 
+                              color: '#ff8d72',
+                              fontSize: '0.65rem',
+                              fontWeight: '500',
+                              lineHeight: '1.1'
+                            }}>
+                              Remaining: ₹{emi.remainingAmount.toLocaleString()}
+                            </small>
+                          </>
+                        )}
                       </div>
                     </td>
 

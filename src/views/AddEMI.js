@@ -52,6 +52,12 @@ function AddEMI() {
         emiAmount: prev.totalAmount,
         totalInstallments: "1"
       }));
+    } else if (name === 'paymentType' && value === 'subscription') {
+      // Subscriptions are indefinite
+      setFormData(prev => ({
+        ...prev,
+        totalInstallments: "0"
+      }));
     }
   };
 
@@ -133,6 +139,7 @@ function AddEMI() {
                            onChange={handleChange}
                            required
                          >
+                           <option value="rent">Rent</option>
                            <option value="personal_loan">Personal Loan</option>
                            <option value="mobile_emi">Mobile EMI</option>
                            <option value="laptop_emi">Laptop EMI</option>
@@ -165,6 +172,7 @@ function AddEMI() {
                            required
                          >
                            <option value="emi">EMI</option>
+                           <option value="subscription">Subscription (Indefinite)</option>
                            <option value="full_payment">Full Payment</option>
                          </Input>
                        </FormGroup>
@@ -200,43 +208,45 @@ function AddEMI() {
                      </Col>
                    </Row>
 
-                   {formData.paymentType === 'emi' && (
-                     <>
-                       <Row>
-                         <Col md="6">
-                           <FormGroup>
-                             <Label for="emiAmount">Monthly EMI Amount *</Label>
-                             <Input
-                               id="emiAmount"
-                               name="emiAmount"
-                               type="number"
-                               value={formData.emiAmount}
-                               onChange={handleChange}
-                               min="0"
-                               step="0.01"
-                               placeholder="0.00"
-                               required
-                             />
-                           </FormGroup>
-                         </Col>
-                         <Col md="6">
-                           <FormGroup>
-                             <Label for="totalInstallments">Total Installments *</Label>
-                             <Input
-                               id="totalInstallments"
-                               name="totalInstallments"
-                               type="number"
-                               value={formData.totalInstallments}
-                               onChange={handleChange}
-                               min="1"
-                               placeholder="12"
-                               required
-                             />
-                           </FormGroup>
-                         </Col>
-                       </Row>
-                     </>
-                   )}
+                   {(formData.paymentType === 'emi' || formData.paymentType === 'subscription') && (
+                    <>
+                      <Row>
+                        <Col md="6">
+                          <FormGroup>
+                            <Label for="emiAmount">Monthly EMI Amount *</Label>
+                            <Input
+                              id="emiAmount"
+                              name="emiAmount"
+                              type="number"
+                              value={formData.emiAmount}
+                              onChange={handleChange}
+                              min="0"
+                              step="0.01"
+                              placeholder="0.00"
+                              required
+                            />
+                          </FormGroup>
+                        </Col>
+                        {formData.paymentType === 'emi' && (
+                          <Col md="6">
+                            <FormGroup>
+                              <Label for="totalInstallments">Total Installments *</Label>
+                              <Input
+                                id="totalInstallments"
+                                name="totalInstallments"
+                                type="number"
+                                value={formData.totalInstallments}
+                                onChange={handleChange}
+                                min="1"
+                                placeholder="12"
+                                required
+                              />
+                            </FormGroup>
+                          </Col>
+                        )}
+                      </Row>
+                    </>
+                  )}
 
                    {formData.paymentType === 'full_payment' && (
                      <Row>
