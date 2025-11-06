@@ -80,6 +80,11 @@ function AdminNavbar(props) {
     localStorage.removeItem("user");
     navigate("/auth/login");
   };
+
+  // navigate to user profile
+  const handleProfileClick = () => {
+    navigate("/admin/user-profile");
+  };
   return (
     <>
       <Navbar className={classNames("navbar-absolute", color)} expand="lg">
@@ -167,7 +172,7 @@ function AdminNavbar(props) {
                 </DropdownToggle>
                 <DropdownMenu className="dropdown-navbar" right tag="ul">
                   <NavLink tag="li">
-                    <DropdownItem className="nav-item">Profile</DropdownItem>
+                    <DropdownItem className="nav-item" onClick={handleProfileClick}>Profile</DropdownItem>
                   </NavLink>
                   <NavLink tag="li">
                     <DropdownItem className="nav-item">Settings</DropdownItem>

@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { Row, Col, Card, CardHeader, CardBody, CardTitle, Table, Spinner, Button, Badge } from "reactstrap";
-import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, isSameMonth, isSameDay, addMonths, subMonths } from "date-fns";
+import { Line } from "react-chartjs-2";
+import { format, addMonths, endOfMonth } from "date-fns";
 import api from "../config/axios";
 
 function Dashboard() {
@@ -10,7 +11,7 @@ function Dashboard() {
   const [payments, setPayments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showPaidEMIs, setShowPaidEMIs] = useState(false);
-  const [currentMonth, setCurrentMonth] = useState(new Date());
+  const [months, setMonths] = useState(12);
 
   const fetchUpcomingTransactions = useCallback(async () => {
     try {
@@ -31,11 +32,11 @@ function Dashboard() {
         return aEmiDay - bEmiDay;
       });
       setUpcomingTransactions(sorted);
+      return true;
     } catch (error) {
       console.error("Error fetching upcoming transactions:", error);
       setUpcomingTransactions([]);
-    } finally {
-      setLoading(false);
+      return false;
     }
   }, []);
 
@@ -47,15 +48,21 @@ function Dashboard() {
       });
       const data = response.data.data || [];
       setPayments(data);
+      return true;
     } catch (error) {
       console.error("Error fetching payments:", error);
       setPayments([]);
+      return false;
     }
   }, []);
 
   useEffect(() => {
-    fetchUpcomingTransactions();
-    fetchPayments();
+    const loadData = async () => {
+      setLoading(true);
+      await Promise.all([fetchUpcomingTransactions(), fetchPayments()]);
+      setLoading(false);
+    };
+    loadData();
   }, [fetchUpcomingTransactions, fetchPayments]);
 
   const handleMarkAsPaid = async (transactionId, transaction) => {
@@ -253,6 +260,175 @@ function Dashboard() {
     };
   }, [payments, pendingTransactions, totalEMIAmount, paidEMIAmount]);
 
+  // EMI Forecast logic
+  const now = useMemo(() => new Date(), []);
+
+  const forecastSeries = useMemo(() => {
+    // Build month buckets from current month forward for `months` count
+    const buckets = [];
+    for (let i = 0; i < months; i++) {
+      const monthDate = addMonths(now, i);
+      buckets.push({
+        key: format(monthDate, "yyyy-MM"),
+        label: format(monthDate, "MMM yyyy"),
+        start: new Date(monthDate.getFullYear(), monthDate.getMonth(), 1),
+        end: endOfMonth(monthDate),
+        total: 0,
+      });
+    }
+
+    // Sum EMI amounts into month buckets
+    payments.forEach((p) => {
+      const amount = Number(p.amount || 0);
+      if (!amount || p.status === "completed") return;
+
+      const emiType = p.emiType; // 'recurring' or 'ending'
+      const endDate = p.endDate ? new Date(p.endDate) : null;
+
+      buckets.forEach((bucket) => {
+        if (emiType === "recurring") {
+          bucket.total += amount;
+        } else if (emiType === "ending") {
+          // include only if this bucket month is <= endDate month
+          if (endDate && bucket.start <= endDate) {
+            bucket.total += amount;
+          }
+        } else {
+          // unknown type, include conservatively
+          bucket.total += amount;
+        }
+      });
+    });
+
+    return buckets;
+  }, [payments, months, now]);
+
+  const handleMonthsChange = (delta) => {
+    setMonths((prev) => Math.min(12, Math.max(1, prev + delta)));
+  };
+
+  // Chart data for EMI Forecast line chart
+  const chartData = useMemo(() => {
+    const labels = forecastSeries.map((m) => m.label);
+    const data = forecastSeries.map((m) => m.total);
+
+    return {
+      labels,
+      datasets: [
+        {
+          label: "Monthly EMI Total",
+          data: data,
+          borderColor: "#FFD166",
+          backgroundColor: "rgba(255, 209, 102, 0.2)",
+          borderWidth: 3,
+          fill: true,
+          tension: 0.4,
+          pointBackgroundColor: "#FFD166",
+          pointBorderColor: "#FFFFFF",
+          pointBorderWidth: 2,
+          pointRadius: 5,
+          pointHoverRadius: 7,
+          pointHoverBackgroundColor: "#FFD166",
+          pointHoverBorderColor: "#FFFFFF",
+          pointHoverBorderWidth: 3,
+        },
+      ],
+    };
+  }, [forecastSeries]);
+
+  const chartOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: {
+        display: true,
+        position: "top",
+        labels: {
+          color: "#FFFFFF",
+          font: {
+            size: 12,
+            weight: 500,
+          },
+          usePointStyle: true,
+          padding: 15,
+        },
+      },
+      tooltip: {
+        backgroundColor: "rgba(0, 0, 0, 0.8)",
+        titleColor: "#FFD166",
+        bodyColor: "#FFFFFF",
+        borderColor: "#FFD166",
+        borderWidth: 1,
+        padding: 12,
+        displayColors: true,
+        callbacks: {
+          label: function (context) {
+            return `₹${context.parsed.y.toLocaleString("en-IN", { maximumFractionDigits: 2 })}`;
+          },
+        },
+      },
+    },
+    scales: {
+      y: {
+        beginAtZero: true,
+        ticks: {
+          color: "#CCCCCC",
+          font: {
+            size: 11,
+          },
+          callback: function (value) {
+            return "₹" + value.toLocaleString("en-IN");
+          },
+        },
+        grid: {
+          color: "rgba(255, 255, 255, 0.1)",
+          drawBorder: false,
+        },
+      },
+      x: {
+        ticks: {
+          color: "#CCCCCC",
+          font: {
+            size: 11,
+          },
+        },
+        grid: {
+          color: "rgba(255, 255, 255, 0.1)",
+          drawBorder: false,
+        },
+      },
+    },
+  };
+
+  if (loading) {
+    return (
+      <div className="content">
+        <div style={{ 
+          display: 'flex', 
+          justifyContent: 'center', 
+          alignItems: 'center', 
+          minHeight: '400px'
+        }}>
+          <i 
+            className="tim-icons icon-refresh-02" 
+            style={{ 
+              fontSize: '3rem', 
+              color: '#FFFFFF',
+              animation: 'spin 1s linear infinite',
+              display: 'inline-block'
+            }} 
+          />
+        </div>
+        <style dangerouslySetInnerHTML={{__html: `
+          @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+          }
+        `}} />
+      </div>
+    );
+  }
+
   return (
     <div className="content">
         {/* Summary Cards */}
@@ -298,27 +474,6 @@ function Dashboard() {
                 <div style={{ color: "#FFFFFF", fontSize: "2rem", fontWeight: 600 }}>
                   ₹{totalEMIAmount.toLocaleString()}
                 </div>
-                {totalEMIAmount > 0 && (
-                  <div style={{ marginTop: "8px" }}>
-                    <div style={{ 
-                      height: "6px", 
-                      background: "rgba(255, 255, 255, 0.1)", 
-                      borderRadius: "3px",
-                      overflow: "hidden"
-                    }}>
-                      <div style={{
-                        height: "100%",
-                        width: `${insights.completionPercentage}%`,
-                        background: "linear-gradient(90deg, rgba(102, 187, 106, 0.9) 0%, rgba(76, 175, 80, 0.8) 100%)",
-                        transition: "width 0.3s ease",
-                        borderRadius: "3px"
-                      }} />
-                    </div>
-                    <div style={{ color: "#00BFFF", fontSize: "0.75rem", marginTop: "4px" }}>
-                      {insights.completionPercentage.toFixed(0)}% completed
-                    </div>
-                  </div>
-                )}
               </CardBody>
             </Card>
           </Col>
@@ -673,51 +828,109 @@ function Dashboard() {
           </Col>
         </Row>
 
-        {/* Calendar View Section */}
+        {/* EMI Forecast Chart Section */}
         <Row style={{ marginTop: '30px' }}>
           <Col xs="12">
             <Card
               style={{
                 background: "linear-gradient(135deg, #1E1E1E 0%, #2d2b42 100%)",
-                border: "1px solid rgba(138, 43, 226, 0.3)",
+                border: "1px solid rgba(255, 209, 102, 0.3)",
                 borderRadius: "15px",
-                boxShadow: "0 8px 32px rgba(138, 43, 226, 0.18)",
+                boxShadow: "0 8px 32px rgba(255, 209, 102, 0.2)",
               }}
             >
               <CardHeader
                 style={{
-                  background: "linear-gradient(135deg, rgba(138, 43, 226, 0.2) 0%, rgba(75, 0, 130, 0.15) 100%)",
-                  borderBottom: "1px solid rgba(138, 43, 226, 0.3)",
+                  background: "linear-gradient(135deg, rgba(255, 209, 102, 0.2) 0%, rgba(255, 193, 7, 0.15) 100%)",
+                  borderBottom: "1px solid rgba(255, 209, 102, 0.3)",
                   borderRadius: "15px 15px 0 0",
                   padding: "0.75rem 1rem",
                 }}
               >
-                <CardTitle
-                  tag="h4"
-                  style={{ color: "#FFFFFF", fontWeight: 400, margin: 0, fontSize: "1.25rem" }}
-                >
-                  <i className="tim-icons icon-calendar-60 mr-2" style={{ color: "#BA68C8" }}></i>
-                  Calendar View
-                </CardTitle>
-                <p className="mb-0" style={{ fontSize: "0.85rem", color: "#BA68C8" }}>
-                  All payment transactions in calendar format
-                </p>
+                <Row>
+                  <Col sm="6">
+                    <CardTitle tag="h4" style={{ color: "#FFFFFF", margin: 0, fontSize: "1.25rem", fontWeight: 600 }}>
+                      <i className="tim-icons icon-chart-line-32 mr-2" style={{ color: "#FFD166" }}></i>
+                      EMI Forecast Trend
+                    </CardTitle>
+                    <p className="mb-0" style={{ fontSize: "0.85rem", color: "#FFD166" }}>
+                      Monthly EMI totals trend over the forecast period
+                    </p>
+                  </Col>
+                  <Col sm="6" className="text-right" style={{ display: "flex", gap: 8, alignItems: "center", justifyContent: "flex-end" }}>
+                    <Button
+                      onClick={() => handleMonthsChange(-1)}
+                      style={{
+                        background: "linear-gradient(135deg, rgba(255, 209, 102, 0.3) 0%, rgba(255, 193, 7, 0.2) 100%)",
+                        border: "1px solid rgba(255, 209, 102, 0.5)",
+                        color: "#FFFFFF",
+                        borderRadius: 8,
+                        padding: "6px 12px",
+                        boxShadow: "0 2px 8px rgba(255, 209, 102, 0.2)",
+                      }}
+                    >
+                      -
+                    </Button>
+                    <div style={{ color: "#FFD166", fontWeight: 600, minWidth: 90, textAlign: "center" }}>
+                      {months} {months === 1 ? "month" : "months"}
+                    </div>
+                    <Button
+                      onClick={() => handleMonthsChange(1)}
+                      style={{
+                        background: "linear-gradient(135deg, rgba(255, 209, 102, 0.3) 0%, rgba(255, 193, 7, 0.2) 100%)",
+                        border: "1px solid rgba(255, 209, 102, 0.5)",
+                        color: "#FFFFFF",
+                        borderRadius: 8,
+                        padding: "6px 12px",
+                        boxShadow: "0 2px 8px rgba(255, 209, 102, 0.2)",
+                      }}
+                    >
+                      +
+                    </Button>
+                    <Button
+                      onClick={() => setMonths(12)}
+                      style={{
+                        background: "linear-gradient(135deg, rgba(255, 152, 0, 0.8) 0%, rgba(255, 193, 7, 0.6) 100%)",
+                        border: "none",
+                        borderRadius: 8,
+                        padding: "6px 12px",
+                        fontWeight: 600,
+                        boxShadow: "0 3px 12px rgba(255, 152, 0, 0.4)",
+                      }}
+                    >
+                      1 Year
+                    </Button>
+                  </Col>
+                </Row>
               </CardHeader>
-              <CardBody style={{ padding: "1.5rem", background: "#1E1E1E" }}>
+              <CardBody style={{ padding: "1.5rem", background: "#1E1E1E", minHeight: "400px" }}>
                 {loading ? (
                   <div className="text-center py-4">
-                    <Spinner color="primary" />
+                    <i 
+                      className="tim-icons icon-refresh-02" 
+                      style={{ 
+                        fontSize: '3rem', 
+                        color: '#FFFFFF',
+                        animation: 'spin 1s linear infinite',
+                        display: 'inline-block'
+                      }} 
+                    />
+                    <style dangerouslySetInnerHTML={{__html: `
+                      @keyframes spin {
+                        from { transform: rotate(0deg); }
+                        to { transform: rotate(360deg); }
+                      }
+                    `}} />
                   </div>
-                ) : upcomingTransactions.length === 0 ? (
-                  <div className="text-center py-4" style={{ color: "#CCCCCC" }}>
-                    No payment transactions found. Transactions will appear here once payments are created.
-                  </div>
+                ) : forecastSeries.length > 0 ? (
+                  <Line data={chartData} options={chartOptions} height={300} />
                 ) : (
-                  <CalendarView
-                    currentMonth={currentMonth}
-                    setCurrentMonth={setCurrentMonth}
-                    transactions={upcomingTransactions}
-                  />
+                  <div className="text-center py-4" style={{ color: "#CCCCCC" }}>
+                    <i className="tim-icons icon-chart-line-32" style={{ fontSize: "3rem", opacity: 0.5, marginBottom: "1rem" }}></i>
+                    <div style={{ fontSize: "1rem" }}>
+                      No payment data available for forecast
+                    </div>
+                  </div>
                 )}
               </CardBody>
             </Card>
@@ -726,178 +939,5 @@ function Dashboard() {
       </div>
   );
 }
-
-// Calendar View Component (memoized for performance)
-const CalendarView = React.memo(({ currentMonth, setCurrentMonth, transactions }) => {
-  const monthStart = startOfMonth(currentMonth);
-  const monthEnd = endOfMonth(currentMonth);
-  const calendarStart = startOfWeek(monthStart);
-  const calendarEnd = endOfWeek(monthEnd);
-  const calendarDays = eachDayOfInterval({ start: calendarStart, end: calendarEnd });
-
-  // Group transactions by date (memoized)
-  const transactionsByDate = useMemo(() => {
-    const grouped = {};
-    transactions.forEach((t) => {
-      if (!t.paymentDate) {
-        return;
-      }
-      try {
-        const paymentDate = new Date(t.paymentDate);
-        if (isNaN(paymentDate.getTime())) {
-          return;
-        }
-        const dateKey = format(paymentDate, "yyyy-MM-dd");
-        if (!grouped[dateKey]) {
-          grouped[dateKey] = [];
-        }
-        grouped[dateKey].push(t);
-      } catch (error) {
-        console.error("Error processing transaction date:", error, t);
-      }
-    });
-    return grouped;
-  }, [transactions]);
-
-  const getTransactionsForDate = useCallback((date) => {
-    const dateKey = format(date, "yyyy-MM-dd");
-    return transactionsByDate[dateKey] || [];
-  }, [transactionsByDate]);
-
-  const weekDays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-
-  const totalTransactions = transactions.length;
-  const transactionsInMonth = Object.keys(transactionsByDate).length;
-
-  return (
-    <div>
-      {/* Calendar Header with Navigation */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-        <Button
-          onClick={() => setCurrentMonth(subMonths(currentMonth, 1))}
-          style={{
-            background: 'linear-gradient(135deg, rgba(138, 43, 226, 0.3) 0%, rgba(75, 0, 130, 0.2) 100%)',
-            border: '1px solid rgba(138, 43, 226, 0.5)',
-            color: '#FFFFFF',
-            borderRadius: '8px',
-            padding: '8px 16px',
-            boxShadow: '0 2px 8px rgba(138, 43, 226, 0.2)'
-          }}
-        >
-          <i className="tim-icons icon-minimal-left"></i>
-        </Button>
-        <div style={{ textAlign: 'center' }}>
-          <h5 style={{ color: '#BA68C8', margin: 0, fontWeight: 500 }}>
-            {format(currentMonth, 'MMMM yyyy')}
-          </h5>
-          <small style={{ color: '#BA68C8', fontSize: '0.8rem' }}>
-            {totalTransactions} total transactions
-          </small>
-        </div>
-        <Button
-          onClick={() => setCurrentMonth(addMonths(currentMonth, 1))}
-          style={{
-            background: 'linear-gradient(135deg, rgba(138, 43, 226, 0.3) 0%, rgba(75, 0, 130, 0.2) 100%)',
-            border: '1px solid rgba(138, 43, 226, 0.5)',
-            color: '#FFFFFF',
-            borderRadius: '8px',
-            padding: '8px 16px',
-            boxShadow: '0 2px 8px rgba(138, 43, 226, 0.2)'
-          }}
-        >
-          <i className="tim-icons icon-minimal-right"></i>
-        </Button>
-      </div>
-
-      {/* Calendar Grid */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '8px' }}>
-        {/* Week Day Headers */}
-        {weekDays.map((day) => (
-          <div
-            key={day}
-            style={{
-              padding: '12px',
-              textAlign: 'center',
-              color: '#CCCCCC',
-              fontWeight: 600,
-              fontSize: '0.9rem',
-              borderBottom: '1px solid rgba(255, 255, 255, 0.1)'
-            }}
-          >
-            {day}
-          </div>
-        ))}
-
-        {/* Calendar Days */}
-        {calendarDays.map((day, idx) => {
-          const dayTransactions = getTransactionsForDate(day);
-          const isCurrentMonth = isSameMonth(day, currentMonth);
-          const isToday = isSameDay(day, new Date());
-          
-          return (
-            <div
-              key={idx}
-              style={{
-                minHeight: '100px',
-                padding: '8px',
-                background: isCurrentMonth ? 'rgba(255, 255, 255, 0.03)' : 'rgba(255, 255, 255, 0.01)',
-                border: isToday ? '2px solid #4285F4' : '1px solid rgba(255, 255, 255, 0.1)',
-                borderRadius: '8px',
-                position: 'relative'
-              }}
-            >
-              <div
-                style={{
-                  color: isCurrentMonth ? (isToday ? '#4285F4' : '#FFFFFF') : '#666666',
-                  fontWeight: isToday ? 600 : 400,
-                  fontSize: '0.9rem',
-                  marginBottom: '4px'
-                }}
-              >
-                {format(day, 'd')}
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                {dayTransactions.slice(0, 3).map((t, tIdx) => {
-                  const isPaid = t.status === 'paid';
-                  const today = new Date();
-                  today.setHours(0, 0, 0, 0);
-                  const paymentDate = new Date(t.paymentDate);
-                  paymentDate.setHours(0, 0, 0, 0);
-                  const isOverdue = !isPaid && paymentDate < today;
-                  const bgColor = isPaid ? 'rgba(76, 175, 80, 0.4)' : isOverdue ? 'rgba(229, 57, 53, 0.4)' : 'rgba(255, 152, 0, 0.4)';
-                  
-                  return (
-                    <div
-                      key={tIdx}
-                      style={{
-                        background: bgColor,
-                        padding: '4px 6px',
-                        borderRadius: '4px',
-                        fontSize: '0.75rem',
-                        color: '#FFFFFF',
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                        whiteSpace: 'nowrap',
-                        cursor: 'pointer',
-                        title: `${t.payment?.name || 'N/A'} - ₹${Number(t.payment?.amount || t.amount || 0).toLocaleString('en-IN')}`
-                      }}
-                    >
-                      {t.payment?.name || 'N/A'}
-                    </div>
-                  );
-                })}
-                {dayTransactions.length > 3 && (
-                  <div style={{ color: '#CCCCCC', fontSize: '0.7rem', padding: '2px' }}>
-                    +{dayTransactions.length - 3} more
-                  </div>
-                )}
-              </div>
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
-});
 
 export default Dashboard;

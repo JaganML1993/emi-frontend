@@ -143,6 +143,35 @@ function EMIForecast() {
     setMonths((prev) => Math.min(12, Math.max(1, prev + delta)));
   };
 
+  if (loading) {
+    return (
+      <div className="content">
+        <div style={{ 
+          display: 'flex', 
+          justifyContent: 'center', 
+          alignItems: 'center', 
+          minHeight: '400px'
+        }}>
+          <i 
+            className="tim-icons icon-refresh-02" 
+            style={{ 
+              fontSize: '3rem', 
+              color: '#FFFFFF',
+              animation: 'spin 1s linear infinite',
+              display: 'inline-block'
+            }} 
+          />
+        </div>
+        <style dangerouslySetInnerHTML={{__html: `
+          @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+          }
+        `}} />
+      </div>
+    );
+  }
+
   return (
     <div className="content">
       {/* Summary Statistics Cards */}
