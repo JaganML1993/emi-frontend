@@ -1,0 +1,722 @@
+import React, { useState, useEffect, useCallback } from "react";
+import {
+  Card,
+  CardHeader,
+  CardBody,
+  CardTitle,
+  Row,
+  Col,
+  FormGroup,
+  Label,
+  Input,
+  Table,
+  Badge,
+  Progress,
+} from "reactstrap";
+import { Line, Doughnut } from "react-chartjs-2";
+import { format } from "date-fns";
+import api from "../config/axios";
+
+function Reports() {
+  const [dashboardData, setDashboardData] = useState(null);
+  const [spendingData, setSpendingData] = useState(null);
+  const [incomeData, setIncomeData] = useState(null);
+  const [emiSummaryData, setEmiSummaryData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [filters, setFilters] = useState({
+    startDate: "",
+    endDate: "",
+  });
+  const [collapsedEMIs, setCollapsedEMIs] = useState(new Set([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]));
+
+  const fetchDashboardData = useCallback(async () => {
+    try {
+      const token = localStorage.getItem("token");
+      const params = { ...filters };
+      const response = await api.get("/api/reports/dashboard", {
+        headers: { Authorization: `Bearer ${token}` },
+        params,
+      });
+      setDashboardData(response.data.data);
+    } catch (error) {
+      console.error("Error fetching dashboard data:", error);
+    } finally {
+      setLoading(false);
+    }
+  }, [filters]);
+
+  const fetchSpendingData = useCallback(async () => {
+    try {
+      const token = localStorage.getItem("token");
+      const params = { ...filters };
+      const response = await api.get("/api/reports/spending", {
+        headers: { Authorization: `Bearer ${token}` },
+        params,
+      });
+      setSpendingData(response.data.data);
+    } catch (error) {
+      console.error("Error fetching spending data:", error);
+    }
+  }, [filters]);
+
+  const fetchIncomeData = useCallback(async () => {
+    try {
+      const token = localStorage.getItem("token");
+      const params = { ...filters };
+      const response = await api.get("/api/reports/income", {
+        headers: { Authorization: `Bearer ${token}` },
+        params,
+      });
+      setIncomeData(response.data.data);
+    } catch (error) {
+      console.error("Error fetching income data:", error);
+    }
+  }, [filters]);
+
+  const fetchEmiSummaryData = useCallback(async () => {
+    try {
+      const token = localStorage.getItem("token");
+      const response = await api.get("/api/reports/emi-summary", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setEmiSummaryData(response.data.data);
+    } catch (error) {
+      console.error("Error fetching EMI summary data:", error);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchDashboardData();
+    fetchSpendingData();
+    fetchIncomeData();
+    fetchEmiSummaryData();
+  }, [fetchDashboardData, fetchSpendingData, fetchIncomeData, fetchEmiSummaryData]);
+
+  const handleFilterChange = (key, value) => {
+    setFilters({ ...filters, [key]: value });
+  };
+
+  const toggleEMICollapse = (typeIndex) => {
+    setCollapsedEMIs(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(typeIndex)) {
+        newSet.delete(typeIndex);
+      } else {
+        newSet.add(typeIndex);
+      }
+      return newSet;
+    });
+  };
+
+  const toggleAllEMIs = () => {
+    if (collapsedEMIs.size === 0) {
+      // All are expanded, collapse all
+      setCollapsedEMIs(new Set(emiSummaryData?.emiBreakdown?.map((_, index) => index) || []));
+    } else {
+      // Some or all are collapsed, expand all
+      setCollapsedEMIs(new Set());
+    }
+  };
+
+  // Initialize collapsed state when EMI data loads
+  useEffect(() => {
+    if (emiSummaryData?.emiBreakdown) {
+      const allIndices = emiSummaryData.emiBreakdown.map((_, index) => index);
+      setCollapsedEMIs(new Set(allIndices));
+    }
+  }, [emiSummaryData]);
+
+  const getChartData = (data, type) => {
+    if (!data) return null;
+
+    const labels = data.map((item) => item.month);
+    const incomeData = data.map((item) => item.income);
+    const expenseData = data.map((item) => item.expenses);
+    const netData = data.map((item) => item.net);
+
+    return {
+      labels,
+      datasets: [
+        {
+          label: "Income",
+          data: incomeData,
+          borderColor: "#00ff88",
+          backgroundColor: "rgba(0, 255, 136, 0.15)",
+          borderWidth: 2,
+          tension: 0.4,
+          pointBackgroundColor: "#00ff88",
+          pointBorderColor: "#ffffff",
+          pointBorderWidth: 2,
+          pointRadius: 4,
+          pointHoverRadius: 6,
+        },
+        {
+          label: "Expenses",
+          data: expenseData,
+          borderColor: "#ff3366",
+          backgroundColor: "rgba(255, 51, 102, 0.15)",
+          borderWidth: 2,
+          tension: 0.4,
+          pointBackgroundColor: "#ff3366",
+          pointBorderColor: "#ffffff",
+          pointBorderWidth: 2,
+          pointRadius: 4,
+          pointHoverRadius: 6,
+        },
+        {
+          label: "Net",
+          data: netData,
+          borderColor: "#4d94ff",
+          backgroundColor: "rgba(77, 148, 255, 0.15)",
+          borderWidth: 2,
+          tension: 0.4,
+          pointBackgroundColor: "#4d94ff",
+          pointBorderColor: "#ffffff",
+          pointBorderWidth: 2,
+          pointRadius: 4,
+          pointHoverRadius: 6,
+        },
+      ],
+    };
+  };
+
+  const getSpendingChartData = () => {
+    if (!spendingData?.categoryBreakdown) return null;
+
+    const labels = spendingData.categoryBreakdown.map((item) => item.name);
+    const data = spendingData.categoryBreakdown.map((item) => item.total);
+    const colors = spendingData.categoryBreakdown.map((item) => item.color);
+
+    return {
+      labels,
+      datasets: [
+        {
+          data,
+          backgroundColor: colors,
+          borderWidth: 2,
+          borderColor: "#fff",
+        },
+      ],
+    };
+  };
+
+  const getIncomeChartData = () => {
+    if (!incomeData?.categoryBreakdown) return null;
+
+    const labels = incomeData.categoryBreakdown.map((item) => item.name);
+    const data = incomeData.categoryBreakdown.map((item) => item.total);
+    const colors = incomeData.categoryBreakdown.map((item) => item.color);
+
+    return {
+      labels,
+      datasets: [
+        {
+          data,
+          backgroundColor: colors,
+          borderWidth: 2,
+          borderColor: "#fff",
+        },
+      ],
+    };
+  };
+
+  if (loading) {
+    return <div>Loading...</div>;
+  }
+
+  return (
+    <>
+      <div className="content">
+
+
+        {/* EMI Payment Summary */}
+        <Row>
+          <Col xs="12">
+            <Card>
+              <CardHeader>
+                <CardTitle tag="h4">EMI Payment Summary</CardTitle>
+                <p className="card-category">
+                  Track your EMI payments, total amount, and remaining balance
+                </p>
+              </CardHeader>
+              <CardBody>
+                {emiSummaryData ? (
+                  <>
+                    <Row>
+                      <Col lg="3" md="6" sm="6" className="mb-3">
+                        <div className="text-center">
+                          <h3 className="text-primary">
+                            ₹{emiSummaryData.summary.totalEMIAmount?.toLocaleString() || "0"}
+                          </h3>
+                          <p className="text-muted mb-0">Total EMI Amount</p>
+                        </div>
+                      </Col>
+                      <Col lg="3" md="6" sm="6" className="mb-3">
+                        <div className="text-center">
+                          <h3 className="text-success">
+                            ₹{emiSummaryData.summary.totalPaidAmount?.toLocaleString() || "0"}
+                          </h3>
+                          <p className="text-muted mb-0">Total Paid</p>
+                        </div>
+                      </Col>
+                      <Col lg="3" md="6" sm="6" className="mb-3">
+                        <div className="text-center">
+                          <h3 className="text-warning">
+                            ₹{emiSummaryData.summary.totalRemainingAmount?.toLocaleString() || "0"}
+                          </h3>
+                          <p className="text-muted mb-0">Remaining Amount</p>
+                        </div>
+                      </Col>
+                      <Col lg="3" md="6" sm="6" className="mb-3">
+                        <div className="text-center">
+                          <h3 className="text-info">
+                            {emiSummaryData.summary.activeEMICount || "0"}
+                          </h3>
+                          <p className="text-muted mb-0">Active EMIs</p>
+                        </div>
+                      </Col>
+                    </Row>
+                    
+                    {/* Overall EMI Progress */}
+                    <Row className="mt-4">
+                      <Col xs="12">
+                        <div className="mb-3">
+                          <div className="d-flex justify-content-between align-items-center mb-2">
+                            <h6 className="mb-0">Overall EMI Progress</h6>
+                            <span className="text-muted">
+                              {emiSummaryData.summary.totalEMIAmount > 0 ? ((emiSummaryData.summary.totalPaidAmount / emiSummaryData.summary.totalEMIAmount) * 100).toFixed(1) : 0}%
+                            </span>
+                          </div>
+                          <Progress
+                            value={emiSummaryData.summary.totalEMIAmount > 0 ? (emiSummaryData.summary.totalPaidAmount / emiSummaryData.summary.totalEMIAmount) * 100 : 0}
+                            color="success"
+                            className="mb-2"
+                          />
+                          <div className="d-flex justify-content-between small text-muted">
+                            <span>₹{emiSummaryData.summary.totalPaidAmount?.toLocaleString() || "0"} paid</span>
+                            <span>₹{emiSummaryData.summary.totalEMIAmount?.toLocaleString() || "0"} total</span>
+                          </div>
+                        </div>
+                      </Col>
+                    </Row>
+                  </>
+                ) : (
+                  <div className="text-center py-4">
+                    <p>Loading EMI summary...</p>
+                  </div>
+                )}
+              </CardBody>
+            </Card>
+          </Col>
+        </Row>
+
+        {/* EMI Quick Stats */}
+        <Row>
+          <Col lg="4" md="6" sm="6" className="mb-3">
+            <Card className="card-stats">
+              <CardBody>
+                <Row>
+                  <Col xs="5">
+                    <div className="icon-big text-center icon-warning">
+                      <i className="tim-icons icon-chart-pie-36"></i>
+                    </div>
+                  </Col>
+                  <Col xs="7">
+                    <div className="numbers">
+                      <p className="card-category">EMI Progress</p>
+                      <h4 className="card-title">
+                        {emiSummaryData?.summary.totalEMIAmount > 0 
+                          ? ((emiSummaryData.summary.totalPaidAmount / emiSummaryData.summary.totalEMIAmount) * 100).toFixed(1) 
+                          : 0}%
+                      </h4>
+                    </div>
+                  </Col>
+                </Row>
+              </CardBody>
+            </Card>
+          </Col>
+          <Col lg="4" md="6" sm="6" className="mb-3">
+            <Card className="card-stats">
+              <CardBody>
+                <Row>
+                  <Col xs="5">
+                    <div className="icon-big text-center icon-success">
+                      <i className="tim-icons icon-single-02"></i>
+                    </div>
+                  </Col>
+                  <Col xs="7">
+                    <div className="numbers">
+                      <p className="card-category">Total EMIs</p>
+                      <h4 className="card-title">{emiSummaryData?.summary.totalEMICount || 0}</h4>
+                    </div>
+                  </Col>
+                </Row>
+              </CardBody>
+            </Card>
+          </Col>
+          <Col lg="4" md="6" sm="6" className="mb-3">
+            <Card className="card-stats">
+              <CardBody>
+                <Row>
+                  <Col xs="5">
+                    <div className="icon-big text-center icon-info">
+                      <i className="tim-icons icon-money-coins"></i>
+                    </div>
+                  </Col>
+                  <Col xs="7">
+                    <div className="numbers">
+                      <p className="card-category">Monthly EMI Burden</p>
+                      <h4 className="card-title">
+                        ₹{emiSummaryData?.emiBreakdown?.reduce((sum, type) => 
+                          sum + type.emis.reduce((typeSum, emi) => {
+                            // Only include active EMIs with regular payment type (not full payment)
+                            if (emi.status === 'active' && emi.paymentType === 'emi') {
+                              return typeSum + (emi.emiAmount || 0);
+                            }
+                            return typeSum;
+                          }, 0), 0
+                        )?.toLocaleString() || "0"}
+                      </h4>
+                      <small className="text-muted">Active monthly EMIs only</small>
+                    </div>
+                  </Col>
+                </Row>
+              </CardBody>
+            </Card>
+          </Col>
+        </Row>
+
+                         {/* Monthly Trend */}
+        <Row>
+          <Col xs="12">
+            <Card>
+              <CardHeader>
+                <CardTitle tag="h4">Monthly Trend</CardTitle>
+                <p className="card-category">
+                  Track your income, expenses, and net amount over time
+                </p>
+              </CardHeader>
+              <CardBody>
+                {dashboardData?.monthlyTrend && (
+                  <Line
+                    data={getChartData(dashboardData.monthlyTrend)}
+                    options={{
+                      responsive: true,
+                      maintainAspectRatio: false,
+                      scales: {
+                        y: {
+                          beginAtZero: true,
+                          ticks: {
+                            callback: function (value) {
+                              return "₹" + value.toFixed(2);
+                            },
+                          },
+                        },
+                      },
+                      plugins: {
+                        legend: {
+                          position: "top",
+                        },
+                      },
+                    }}
+                    height={300}
+                  />
+                )}
+              </CardBody>
+            </Card>
+          </Col>
+        </Row>
+
+
+
+        {/* Spending Analysis */}
+        <Row>
+          <Col lg="6" md="12">
+            <Card>
+              <CardHeader>
+                <CardTitle tag="h4">Spending by EMI Type</CardTitle>
+                <p className="card-category">
+                  Total: ₹{spendingData?.totalSpending?.toFixed(2) || "0.00"}
+                </p>
+              </CardHeader>
+              <CardBody>
+                {spendingData?.categoryBreakdown && (
+                  <Doughnut
+                    data={getSpendingChartData()}
+                    options={{
+                      responsive: true,
+                      maintainAspectRatio: false,
+                      plugins: {
+                        legend: {
+                          position: "bottom",
+                        },
+                      },
+                    }}
+                    height={250}
+                  />
+                )}
+              </CardBody>
+            </Card>
+          </Col>
+          <Col lg="6" md="12">
+            <Card>
+                             <CardHeader>
+                 <CardTitle tag="h4">Income by Source</CardTitle>
+                 <p className="card-category">
+                   Total: ₹{incomeData?.totalIncome?.toFixed(2) || "0.00"}
+                 </p>
+               </CardHeader>
+              <CardBody>
+                {incomeData?.categoryBreakdown && (
+                  <Doughnut
+                    data={getIncomeChartData()}
+                    options={{
+                      responsive: true,
+                      maintainAspectRatio: false,
+                      plugins: {
+                        legend: {
+                          position: "bottom",
+                        },
+                      },
+                    }}
+                    height={250}
+                  />
+                )}
+              </CardBody>
+            </Card>
+          </Col>
+        </Row>
+
+        {/* Spending Breakdown Table */}
+        <Row>
+          <Col xs="12">
+            <Card>
+              <CardHeader>
+                <CardTitle tag="h4">Spending Breakdown</CardTitle>
+                <p className="card-category">
+                  Detailed view of your spending by EMI type
+                </p>
+              </CardHeader>
+              <CardBody>
+                <div className="table-responsive">
+                  <Table style={{ minWidth: '700px' }}>
+                    <thead>
+                      <tr>
+                        <th>EMI Type</th>
+                        <th>Total Spent</th>
+                        <th>Transaction Count</th>
+                        <th>Average per Transaction</th>
+                        <th>Percentage of Total</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {spendingData?.categoryBreakdown?.map((item) => (
+                        <tr key={item.name}>
+                          <td>
+                            <span
+                              style={{
+                                color: item.color,
+                                fontWeight: "bold",
+                              }}
+                            >
+                              {item.name}
+                            </span>
+                          </td>
+                          <td>₹{item.total.toFixed(2)}</td>
+                          <td>{item.count}</td>
+                          <td>
+                            ₹{(item.total / item.count).toFixed(2)}
+                          </td>
+                          <td>
+                            <div className="d-flex align-items-center">
+                              <div className="mr-2" style={{ width: "100px" }}>
+                                <Progress
+                                  value={
+                                    (item.total / spendingData.totalSpending) * 100
+                                  }
+                                  color="info"
+                                  style={{ height: "8px" }}
+                                />
+                              </div>
+                              <span>
+                                {((item.total / spendingData.totalSpending) * 100).toFixed(1)}%
+                              </span>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </Table>
+                </div>
+              </CardBody>
+            </Card>
+          </Col>
+        </Row>
+
+        {/* Income Breakdown Table */}
+        <Row>
+          <Col xs="12">
+            <Card>
+                             <CardHeader>
+                 <CardTitle tag="h4">Income Breakdown</CardTitle>
+                 <p className="card-category">
+                   Detailed view of your income by source
+                 </p>
+               </CardHeader>
+              <CardBody>
+                <div className="table-responsive">
+                  <Table style={{ minWidth: '700px' }}>
+                                         <thead>
+                       <tr>
+                         <th>Income Source</th>
+                         <th>Total Income</th>
+                         <th>Transaction Count</th>
+                         <th>Average per Transaction</th>
+                         <th>Percentage of Total</th>
+                       </tr>
+                     </thead>
+                    <tbody>
+                      {incomeData?.categoryBreakdown?.map((item) => (
+                        <tr key={item.name}>
+                          <td>
+                            <span
+                              style={{
+                                color: item.color,
+                                fontWeight: "bold",
+                              }}
+                            >
+                              {item.name}
+                            </span>
+                          </td>
+                          <td>₹{item.total.toFixed(2)}</td>
+                          <td>{item.count}</td>
+                          <td>
+                            ₹{(item.total / item.count).toFixed(2)}
+                          </td>
+                          <td>
+                            <div className="d-flex align-items-center">
+                              <div className="mr-2" style={{ width: "100px" }}>
+                                <Progress
+                                  value={
+                                    (item.total / incomeData.totalIncome) * 100
+                                  }
+                                  color="success"
+                                  style={{ height: "8px" }}
+                                />
+                              </div>
+                              <span>
+                                {((item.total / incomeData.totalIncome) * 100).toFixed(1)}%
+                              </span>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </Table>
+                </div>
+              </CardBody>
+            </Card>
+          </Col>
+        </Row>
+
+
+
+        {/* EMI Breakdown by Type */}
+        <Row>
+          <Col xs="12">
+            <Card>
+              <CardHeader>
+                <CardTitle tag="h4">EMI Breakdown by Type</CardTitle>
+                <p className="card-category">
+                  Breakdown of your EMIs by category
+                </p>
+                <div className="text-right">
+                  <button 
+                    className="btn btn-outline-primary btn-sm"
+                    onClick={toggleAllEMIs}
+                  >
+                    {collapsedEMIs.size === 0 ? 'Collapse All' : 'Expand All'}
+                  </button>
+                  <small className="text-muted d-block mt-1">All EMI types are collapsed by default</small>
+                </div>
+              </CardHeader>
+              <CardBody>
+                {emiSummaryData?.emiBreakdown ? (
+                  <Row>
+                    {emiSummaryData.emiBreakdown.map((type, index) => (
+                      <Col lg="6" md="12" key={index} className="mb-3">
+                        <div className="border rounded p-3 h-100" style={{ 
+                          background: 'linear-gradient(135deg, rgba(29, 140, 248, 0.05) 0%, rgba(118, 75, 162, 0.05) 100%)',
+                          borderColor: 'rgba(29, 140, 248, 0.2) !important'
+                        }}>
+                          <div className="d-flex justify-content-between align-items-center mb-2">
+                            <div className="d-flex align-items-center">
+                              <button 
+                                className="btn btn-link btn-sm p-0 mr-2"
+                                onClick={() => toggleEMICollapse(index)}
+                                style={{ color: '#1d8cf8', textDecoration: 'none' }}
+                              >
+                                <i className={`tim-icons ${collapsedEMIs.has(index) ? 'icon-minimal-down' : 'icon-minimal-up'}`}></i>
+                              </button>
+                              <h6 className="mb-0 text-capitalize">{type.type.replace('_', ' ')}</h6>
+                            </div>
+                            <div>
+                              <span className="badge badge-primary mr-2">{type.count}</span>
+                              {type.emis.some(emi => emi.paymentType === 'full_payment') && (
+                                <span className="badge badge-info">Full Payment</span>
+                              )}
+                            </div>
+                          </div>
+                          <Progress
+                            value={type.totalAmount > 0 ? (type.paidAmount / type.totalAmount) * 100 : 0}
+                            color="success"
+                            className="mb-2"
+                          />
+                          <div className="d-flex justify-content-between small text-muted">
+                            <span>₹{type.paidAmount?.toLocaleString() || "0"}</span>
+                            <span>₹{type.totalAmount?.toLocaleString() || "0"}</span>
+                          </div>
+                          {/* Show EMI details - Collapsible */}
+                          {!collapsedEMIs.has(index) && (
+                            <div className="mt-2">
+                              {type.emis.map((emi, emiIndex) => (
+                                <div key={emiIndex} className="mt-2 p-2 rounded small" style={{ 
+                                  background: 'linear-gradient(135deg, rgba(102, 126, 234, 0.8) 0%, rgba(118, 75, 162, 0.8) 100%)',
+                                  color: 'white',
+                                  boxShadow: '0 4px 15px rgba(0,0,0,0.15)',
+                                  backdropFilter: 'blur(10px)',
+                                  border: '1px solid rgba(255, 255, 255, 0.1)'
+                                }}>
+                                  <div className="d-flex justify-content-between align-items-center">
+                                    <span className="font-weight-bold text-white">{emi.name}</span>
+                                    <span className={`badge badge-${emi.status === 'active' ? 'success' : emi.status === 'completed' ? 'info' : 'warning'}`}>
+                                      {emi.status}
+                                    </span>
+                                  </div>
+                                  <div className="d-flex justify-content-between text-white-50">
+                                    <span>₹{emi.emiAmount?.toLocaleString() || "0"}</span>
+                                    <span>{emi.paymentType === 'full_payment' ? 'Full Payment' : `${emi.paidInstallments}/${emi.totalInstallments} installments`}</span>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      </Col>
+                    ))}
+                  </Row>
+                ) : (
+                  <div className="text-center py-4">
+                    <p>No EMI data available</p>
+                  </div>
+                )}
+              </CardBody>
+            </Card>
+          </Col>
+        </Row>
+      </div>
+    </>
+  );
+}
+
+export default Reports;
