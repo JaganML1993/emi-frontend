@@ -231,18 +231,19 @@ function Payments() {
           <Col xs="12">
             <Card
               style={{
-                background: "linear-gradient(135deg, #1e1e2d 0%, #2d2b42 100%)",
-                border: "1px solid rgba(255, 255, 255, 0.1)",
+                background: "linear-gradient(135deg, #1E1E1E 0%, #2d2b42 100%)",
+                border: "1px solid rgba(255, 82, 82, 0.3)",
                 borderRadius: "15px",
-                boxShadow: "0 8px 32px rgba(0, 0, 0, 0.3)",
+                boxShadow: "0 8px 32px rgba(255, 82, 82, 0.18)",
               }}
             >
               <CardHeader
                 style={{
                   background:
-                    "linear-gradient(135deg, rgba(29, 140, 248, 0.1) 0%, rgba(29, 140, 248, 0.05) 100%)",
-                  borderBottom: "1px solid rgba(255, 255, 255, 0.1)",
+                    "linear-gradient(135deg, rgba(255, 82, 82, 0.2) 0%, rgba(255, 152, 0, 0.15) 100%)",
+                  borderBottom: "1px solid rgba(255, 82, 82, 0.3)",
                   borderRadius: "15px 15px 0 0",
+                  padding: "0.5rem 0.75rem",
                 }}
               >
                 <Row>
@@ -253,32 +254,27 @@ function Payments() {
                         color: "#ffffff",
                         fontWeight: "700",
                         margin: "0",
-                        fontSize: "1.5rem",
+                        fontSize: "1.15rem",
                       }}
                     >
                       <i
                         className="tim-icons icon-credit-card mr-2"
-                        style={{ color: "#1d8cf8" }}
+                        style={{ color: "#FFD166" }}
                       ></i>
                       Payments
                     </CardTitle>
-                    <p
-                      className="text-white-50 mb-0"
-                      style={{ fontSize: "0.9rem" }}
-                    >
-                      Manage your EMI payments
-                    </p>
+                    <p className="mb-0" style={{ fontSize: "0.8rem", color: "#FFD166" }}>Manage your EMI payments</p>
                   </Col>
                   <Col sm="6" className="text-right">
                     <Button
                       style={{
                         background:
-                          "linear-gradient(135deg, #1d8cf8 0%, #0056b3 100%)",
+                          "linear-gradient(135deg, rgba(255, 152, 0, 0.9) 0%, rgba(255, 193, 7, 0.8) 100%)",
                         border: "none",
                         borderRadius: "8px",
-                        padding: "8px 16px",
+                        padding: "6px 12px",
                         fontWeight: "600",
-                        boxShadow: "0 4px 15px rgba(29, 140, 248, 0.3)",
+                        boxShadow: "0 3px 12px rgba(255, 152, 0, 0.35)",
                       }}
                       onClick={handleAddEMI}
                     >
@@ -288,7 +284,7 @@ function Payments() {
                   </Col>
                 </Row>
               </CardHeader>
-              <CardBody style={{ padding: "1.5rem" }}>
+              <CardBody style={{ padding: "1rem" }}>
                 {emis.length === 0 ? (
                   <div className="text-center py-4" style={{ color: "#CCCCCC" }}>
                     No payments found. Click "Add EMI" to create one.
@@ -299,30 +295,32 @@ function Payments() {
                       const isSavings = payment.category === "savings";
                       const isRecurring = payment.emiType === "recurring";
                       const cardBg = isSavings 
-                        ? "rgba(102, 187, 106, 0.15)" 
-                        : "rgba(229, 57, 53, 0.15)";
+                        ? "linear-gradient(135deg, rgba(102, 187, 106, 0.2) 0%, rgba(76, 175, 80, 0.1) 100%)" 
+                        : "linear-gradient(135deg, rgba(255, 82, 82, 0.2) 0%, rgba(255, 107, 107, 0.1) 100%)";
                       const borderColor = isSavings 
-                        ? "rgba(102, 187, 106, 0.4)" 
-                        : "rgba(229, 57, 53, 0.4)";
+                        ? "rgba(102, 187, 106, 0.45)" 
+                        : "rgba(255, 82, 82, 0.45)";
                       
                       return (
-                        <Col key={payment._id} md="6" lg="4" className="mb-4">
+                        <Col key={payment._id} md="4" lg="3" className="mb-3">
                           <Card
                             style={{
                               background: cardBg,
                               border: `1px solid ${borderColor}`,
-                              borderRadius: "15px",
-                              boxShadow: "0 4px 12px rgba(0, 0, 0, 0.2)",
+                              borderRadius: "12px",
+                              boxShadow: isSavings ? "0 3px 10px rgba(102, 187, 106, 0.18)" : "0 3px 10px rgba(255, 82, 82, 0.18)",
                               backdropFilter: "blur(10px)",
                               WebkitBackdropFilter: "blur(10px)",
                               height: "100%",
+                              position: "relative",
+                              overflow: "hidden",
                             }}
                           >
-                            <CardBody style={{ padding: "1.5rem" }}>
+                            <CardBody style={{ padding: "0.75rem" }}>
                               {/* Header with name and category */}
-                              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "1rem" }}>
+                              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "0.5rem" }}>
                                 <div style={{ flex: 1 }}>
-                                  <h5 style={{ color: "#FFFFFF", fontWeight: 600, marginBottom: "8px", fontSize: "1.1rem" }}>
+                                  <h5 style={{ color: "#FFFFFF", fontWeight: 600, marginBottom: "4px", fontSize: "0.95rem" }}>
                                     {payment.name}
                                   </h5>
                                   {getCategoryBadge(payment)}
@@ -331,36 +329,36 @@ function Payments() {
                                   <Button
                                     size="sm"
                                     style={{
-                                      background: "rgba(29, 140, 248, 0.8)",
+                                      background: "linear-gradient(135deg, rgba(0, 191, 255, 0.8) 0%, rgba(30, 144, 255, 0.7) 100%)",
                                       border: "none",
-                                      padding: "6px 10px",
+                                      padding: "4px 8px",
                                       borderRadius: "6px",
                                     }}
                                     onClick={() => navigate(`/admin/payments/edit/${payment._id}`)}
                                   >
-                                    <i className="tim-icons icon-pencil" style={{ fontSize: "0.9rem" }} />
+                                    <i className="tim-icons icon-pencil" style={{ fontSize: "0.85rem" }} />
                                   </Button>
                                   <Button
                                     size="sm"
                                     style={{
-                                      background: "rgba(229, 57, 53, 0.8)",
+                                      background: "linear-gradient(135deg, rgba(255, 82, 82, 0.9) 0%, rgba(255, 107, 107, 0.8) 100%)",
                                       border: "none",
-                                      padding: "6px 10px",
+                                      padding: "4px 8px",
                                       borderRadius: "6px",
                                     }}
                                     onClick={() => handleDelete(payment._id)}
                                   >
-                                    <i className="tim-icons icon-trash-simple" style={{ fontSize: "0.9rem" }} />
+                                    <i className="tim-icons icon-trash-simple" style={{ fontSize: "0.85rem" }} />
                                   </Button>
                                 </div>
                               </div>
 
                               {/* Amount */}
-                              <div style={{ marginBottom: "1rem" }}>
-                                <div style={{ color: "rgba(255, 255, 255, 0.7)", fontSize: "0.85rem", marginBottom: "4px" }}>
+                              <div style={{ marginBottom: "0.5rem" }}>
+                                <div style={{ color: "rgba(255, 255, 255, 0.7)", fontSize: "0.75rem", marginBottom: "2px" }}>
                                   Amount
                                 </div>
-                                <div style={{ color: "#FFFFFF", fontSize: "1.5rem", fontWeight: 600 }}>
+                                <div style={{ color: "#FFFFFF", fontSize: "1.1rem", fontWeight: 600 }}>
                                   ₹{payment.amount?.toLocaleString() || "0.00"}
                                 </div>
                               </div>
@@ -369,11 +367,11 @@ function Payments() {
                               <div style={{ 
                                 display: "grid", 
                                 gridTemplateColumns: "1fr 1fr", 
-                                gap: "1rem",
-                                marginBottom: "1rem"
+                                gap: "0.5rem",
+                                marginBottom: "0.5rem"
                               }}>
                                 <div>
-                                  <div style={{ color: "rgba(255, 255, 255, 0.7)", fontSize: "0.85rem", marginBottom: "4px" }}>
+                                  <div style={{ color: "rgba(255, 255, 255, 0.7)", fontSize: "0.75rem", marginBottom: "2px" }}>
                                     EMI Day
                                   </div>
                                   <div style={{ color: "#FFFFFF", fontWeight: 500 }}>
@@ -381,7 +379,7 @@ function Payments() {
                                   </div>
                                 </div>
                                 <div>
-                                  <div style={{ color: "rgba(255, 255, 255, 0.7)", fontSize: "0.85rem", marginBottom: "4px" }}>
+                                  <div style={{ color: "rgba(255, 255, 255, 0.7)", fontSize: "0.75rem", marginBottom: "2px" }}>
                                     End Date
                                   </div>
                                   <div style={{ color: "#FFFFFF", fontWeight: 500 }}>
@@ -399,14 +397,14 @@ function Payments() {
                                 display: "flex", 
                                 justifyContent: "space-between", 
                                 alignItems: "center",
-                                paddingTop: "1rem",
+                                paddingTop: "0.5rem",
                                 borderTop: "1px solid rgba(255, 255, 255, 0.1)"
                               }}>
                                 <div>
-                                  <div style={{ color: "rgba(255, 255, 255, 0.7)", fontSize: "0.85rem", marginBottom: "4px" }}>
+                                  <div style={{ color: "rgba(255, 255, 255, 0.7)", fontSize: "0.75rem", marginBottom: "2px" }}>
                                     Pending EMIs
                                   </div>
-                                  <div style={{ color: "#ff8d72", fontSize: "1.2rem", fontWeight: 600 }}>
+                                  <div style={{ color: "#FFD166", fontSize: "1rem", fontWeight: 600 }}>
                                     {calculatePendingEMIs(payment)}
                                   </div>
                                 </div>
@@ -414,14 +412,14 @@ function Payments() {
                                   <Badge
                                     style={{
                                       background: payment.status === "active"
-                                        ? "rgba(102, 187, 106, 0.8)"
+                                        ? "linear-gradient(135deg, rgba(102, 187, 106, 0.9) 0%, rgba(76, 175, 80, 0.8) 100%)"
                                         : payment.status === "completed"
-                                        ? "rgba(29, 140, 248, 0.8)"
-                                        : "rgba(108, 117, 125, 0.8)",
+                                        ? "linear-gradient(135deg, rgba(0, 191, 255, 0.9) 0%, rgba(30, 144, 255, 0.8) 100%)"
+                                        : "linear-gradient(135deg, rgba(108, 117, 125, 0.9) 0%, rgba(108, 117, 125, 0.8) 100%)",
                                       border: "none",
-                                      padding: "6px 12px",
+                                      padding: "4px 10px",
                                       borderRadius: "6px",
-                                      fontSize: "0.85rem",
+                                      fontSize: "0.75rem",
                                     }}
                                   >
                                     {payment.status?.charAt(0).toUpperCase() + payment.status?.slice(1) || "Active"}

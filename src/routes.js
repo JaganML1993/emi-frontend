@@ -21,7 +21,7 @@ const Payments = lazy(() => import("views/Payments.js"));
 const AddPayment = lazy(() => import("views/AddPayment.js"));
 const EditPayment = lazy(() => import("views/EditPayment.js"));
 const UserProfile = lazy(() => import("views/UserProfile.js"));
-const FinancialFreedom = lazy(() => import("views/FinancialFreedom.js"));
+const EMIForecast = lazy(() => import("views/EMIForecast.js"));
 
 var routes = [
   {
@@ -46,10 +46,10 @@ var routes = [
     layout: "/admin",
   },
   {
-    path: "/financial-freedom",
-    name: "Financial Freedom",
-    icon: "tim-icons icon-coins",
-    component: FinancialFreedom,
+    path: "/emi-forecast",
+    name: "EMI Forecast",
+    icon: "tim-icons icon-chart-bar-32",
+    component: EMIForecast,
     layout: "/admin",
   },
   // Hidden routes (not shown in sidebar)

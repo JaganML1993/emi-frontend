@@ -134,9 +134,9 @@ function Sidebar(props) {
     <BackgroundColorContext.Consumer>
       {({ color }) => (
         <div className="sidebar" data={color} style={{
-          background: 'linear-gradient(135deg, #1e1e2d 0%, #2d2b42 100%)',
-          boxShadow: '0 8px 32px rgba(0, 0, 0, 0.4), 0 4px 16px rgba(0, 0, 0, 0.2)',
-          border: '1px solid rgba(255, 255, 255, 0.1)',
+          background: 'linear-gradient(135deg, rgba(0, 191, 255, 0.3) 0%, rgba(30, 144, 255, 0.25) 50%, #1e1e2d 100%)',
+          boxShadow: '0 8px 32px rgba(0, 191, 255, 0.3), 0 4px 16px rgba(30, 144, 255, 0.2)',
+          border: '1px solid rgba(0, 191, 255, 0.4)',
           backdropFilter: 'blur(20px)'
         }}>
           <div className="sidebar-wrapper" ref={sidebarRef} style={{
@@ -145,7 +145,7 @@ function Sidebar(props) {
             {logoImg !== null || logoText !== null ? (
               <div className="logo" style={{
                 padding: '20px 15px',
-                borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
+                borderBottom: '1px solid rgba(0, 191, 255, 0.4)',
                 marginBottom: '10px'
               }}>
                 {logoImg}
@@ -176,17 +176,17 @@ function Sidebar(props) {
                       className="nav-link"
                       onClick={props.toggleSidebar}
                       style={{
-                        background: isActive ? 'linear-gradient(135deg, rgba(0, 210, 91, 0.4) 0%, rgba(0, 191, 154, 0.2) 100%)' : 'transparent',
-                        border: isActive ? '2px solid rgba(0, 210, 91, 0.8)' : '1px solid transparent',
+                        background: isActive ? 'linear-gradient(135deg, rgba(255, 152, 0, 0.5) 0%, rgba(255, 193, 7, 0.35) 100%)' : 'transparent',
+                        border: isActive ? '2px solid rgba(255, 152, 0, 0.8)' : '1px solid transparent',
                         borderRadius: '12px',
                         padding: '12px 15px',
-                        color: isActive ? '#00d25b' : '#ffffff',
+                        color: isActive ? '#FFD166' : '#ffffff',
                         fontWeight: isActive ? '700' : '400',
                         transition: 'all 0.3s ease',
                         display: 'flex',
                         alignItems: 'center',
                         textDecoration: 'none',
-                        boxShadow: isActive ? '0 8px 25px rgba(0, 210, 91, 0.4)' : 'none',
+                        boxShadow: isActive ? '0 8px 25px rgba(255, 152, 0, 0.4)' : 'none',
                         position: 'relative'
                       }}
 
@@ -194,7 +194,7 @@ function Sidebar(props) {
                       <i className={prop.icon} style={{ 
                         marginRight: '12px',
                         fontSize: '1.1rem',
-                        color: isActive ? '#00d25b' : '#ffffff',
+                        color: isActive ? '#FFD166' : '#ffffff',
                         opacity: isActive ? '1' : '0.8',
                         position: 'relative',
                         zIndex: '2'
@@ -202,7 +202,7 @@ function Sidebar(props) {
                       <p style={{ 
                         margin: '0',
                         fontSize: '0.9rem',
-                        color: isActive ? '#00d25b' : '#ffffff',
+                        color: isActive ? '#FFD166' : '#ffffff',
                         opacity: isActive ? '1' : '0.8',
                         position: 'relative',
                         zIndex: '2'

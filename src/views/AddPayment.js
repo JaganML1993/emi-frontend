@@ -142,18 +142,19 @@ function AddPayment() {
           <Col md="12">
             <Card
               style={{
-                background: "linear-gradient(135deg, #1e1e2d 0%, #2d2b42 100%)",
-                border: "1px solid rgba(255, 255, 255, 0.1)",
+                background: "linear-gradient(135deg, #1E1E1E 0%, #2d2b42 100%)",
+                border: "1px solid rgba(255, 152, 0, 0.3)",
                 borderRadius: "15px",
-                boxShadow: "0 8px 32px rgba(0, 0, 0, 0.3)",
+                boxShadow: "0 8px 32px rgba(255, 152, 0, 0.18)",
               }}
             >
               <CardHeader
                 style={{
                   background:
-                    "linear-gradient(135deg, rgba(29, 140, 248, 0.1) 0%, rgba(29, 140, 248, 0.05) 100%)",
-                  borderBottom: "1px solid rgba(255, 255, 255, 0.1)",
+                    "linear-gradient(135deg, rgba(255, 152, 0, 0.2) 0%, rgba(255, 193, 7, 0.15) 100%)",
+                  borderBottom: "1px solid rgba(255, 152, 0, 0.3)",
                   borderRadius: "15px 15px 0 0",
+                  padding: "0.75rem 1rem",
                 }}
               >
                 <CardTitle
@@ -162,16 +163,16 @@ function AddPayment() {
                     color: "#ffffff",
                     fontWeight: "700",
                     margin: "0",
-                    fontSize: "1.5rem",
+                    fontSize: "1.25rem",
                   }}
                 >
                   <i
                     className="tim-icons icon-simple-add mr-2"
-                    style={{ color: "#1d8cf8" }}
+                    style={{ color: "#FFD166" }}
                   ></i>
                   Add New EMI
                 </CardTitle>
-                <p className="text-white-50 mb-0" style={{ fontSize: "0.9rem" }}>
+                <p className="mb-0" style={{ fontSize: "0.85rem", color: "#FFD166" }}>
                   Enter EMI details below
                 </p>
               </CardHeader>
@@ -183,7 +184,7 @@ function AddPayment() {
                   <Row>
                     <Col md="6">
                       <FormGroup>
-                        <Label for="name" style={{ color: "#ffffff" }}>
+                        <Label for="name" style={{ color: "#FFD166", fontWeight: 500 }}>
                           EMI Name *
                         </Label>
                         <Input
@@ -194,13 +195,20 @@ function AddPayment() {
                           onChange={handleChange}
                           required
                           placeholder="e.g., House Rent, Car Loan"
-                          style={{ backgroundColor: "rgba(255, 255, 255, 0.1)", border: "1px solid rgba(255, 255, 255, 0.2)", color: "#ffffff" }}
+                          style={{ 
+                            backgroundColor: "rgba(255, 255, 255, 0.08)", 
+                            border: "1px solid rgba(255, 152, 0, 0.3)", 
+                            color: "#ffffff",
+                            borderRadius: "8px",
+                          }}
+                          onFocus={(e) => e.target.style.borderColor = "rgba(255, 152, 0, 0.6)"}
+                          onBlur={(e) => e.target.style.borderColor = "rgba(255, 152, 0, 0.3)"}
                         />
                       </FormGroup>
                     </Col>
                     <Col md="6">
                       <FormGroup>
-                        <Label for="amount" style={{ color: "#ffffff" }}>
+                        <Label for="amount" style={{ color: "#FFD166", fontWeight: 500 }}>
                           EMI Amount *
                         </Label>
                         <Input
@@ -213,7 +221,14 @@ function AddPayment() {
                           onChange={handleChange}
                           required
                           placeholder="0.00"
-                          style={{ backgroundColor: "rgba(255, 255, 255, 0.1)", border: "1px solid rgba(255, 255, 255, 0.2)", color: "#ffffff" }}
+                          style={{ 
+                            backgroundColor: "rgba(255, 255, 255, 0.08)", 
+                            border: "1px solid rgba(255, 152, 0, 0.3)", 
+                            color: "#ffffff",
+                            borderRadius: "8px",
+                          }}
+                          onFocus={(e) => e.target.style.borderColor = "rgba(255, 152, 0, 0.6)"}
+                          onBlur={(e) => e.target.style.borderColor = "rgba(255, 152, 0, 0.3)"}
                         />
                       </FormGroup>
                     </Col>
@@ -222,7 +237,7 @@ function AddPayment() {
                   <Row>
                     <Col md="6">
                       <FormGroup>
-                        <Label for="emiType" style={{ color: "#ffffff" }}>
+                        <Label for="emiType" style={{ color: "#FFD166", fontWeight: 500 }}>
                           EMI Type *
                         </Label>
                         <Input
@@ -232,19 +247,26 @@ function AddPayment() {
                           value={formData.emiType}
                           onChange={handleChange}
                           required
-                          style={{ backgroundColor: "rgba(255, 255, 255, 0.1)", border: "1px solid rgba(255, 255, 255, 0.2)", color: "#ffffff" }}
+                          style={{ 
+                            backgroundColor: "rgba(255, 255, 255, 0.08)", 
+                            border: "1px solid rgba(255, 152, 0, 0.3)", 
+                            color: "#ffffff",
+                            borderRadius: "8px",
+                          }}
+                          onFocus={(e) => e.target.style.borderColor = "rgba(255, 152, 0, 0.6)"}
+                          onBlur={(e) => e.target.style.borderColor = "rgba(255, 152, 0, 0.3)"}
                         >
                           <option value="ending" style={{ backgroundColor: "#2d2b42", color: "#ffffff" }}>Ending EMI</option>
                           <option value="recurring" style={{ backgroundColor: "#2d2b42", color: "#ffffff" }}>Recurring EMI</option>
                         </Input>
-                        <small className="text-white-50" style={{ fontSize: "0.85rem" }}>
+                        <small style={{ fontSize: "0.85rem", color: "#BA68C8" }}>
                           Ending: One-time with end date. Recurring: Ongoing like rent/subscriptions
                         </small>
                       </FormGroup>
                     </Col>
                     <Col md="6">
                       <FormGroup>
-                        <Label for="category" style={{ color: "#ffffff" }}>
+                        <Label for="category" style={{ color: "#FFD166", fontWeight: 500 }}>
                           Category *
                         </Label>
                         <Input
@@ -254,7 +276,14 @@ function AddPayment() {
                           value={formData.category}
                           onChange={handleChange}
                           required
-                          style={{ backgroundColor: "rgba(255, 255, 255, 0.1)", border: "1px solid rgba(255, 255, 255, 0.2)", color: "#ffffff" }}
+                          style={{ 
+                            backgroundColor: "rgba(255, 255, 255, 0.08)", 
+                            border: "1px solid rgba(255, 152, 0, 0.3)", 
+                            color: "#ffffff",
+                            borderRadius: "8px",
+                          }}
+                          onFocus={(e) => e.target.style.borderColor = "rgba(255, 152, 0, 0.6)"}
+                          onBlur={(e) => e.target.style.borderColor = "rgba(255, 152, 0, 0.3)"}
                         >
                           <option value="expense" style={{ backgroundColor: "#2d2b42", color: "#ffffff" }}>Expense</option>
                           <option value="savings" style={{ backgroundColor: "#2d2b42", color: "#ffffff" }}>Savings</option>
@@ -266,7 +295,7 @@ function AddPayment() {
                   <Row>
                     <Col md="4">
                       <FormGroup>
-                        <Label for="startDate" style={{ color: "#ffffff" }}>
+                        <Label for="startDate" style={{ color: "#FFD166", fontWeight: 500 }}>
                           Start Date *
                         </Label>
                         <Input
@@ -276,13 +305,20 @@ function AddPayment() {
                           value={formData.startDate}
                           onChange={handleChange}
                           required
-                          style={{ backgroundColor: "rgba(255, 255, 255, 0.1)", border: "1px solid rgba(255, 255, 255, 0.2)", color: "#ffffff" }}
+                          style={{ 
+                            backgroundColor: "rgba(255, 255, 255, 0.08)", 
+                            border: "1px solid rgba(255, 152, 0, 0.3)", 
+                            color: "#ffffff",
+                            borderRadius: "8px",
+                          }}
+                          onFocus={(e) => e.target.style.borderColor = "rgba(255, 152, 0, 0.6)"}
+                          onBlur={(e) => e.target.style.borderColor = "rgba(255, 152, 0, 0.3)"}
                         />
                       </FormGroup>
                     </Col>
                     <Col md="4">
                       <FormGroup>
-                        <Label for="emiDay" style={{ color: "#ffffff" }}>
+                        <Label for="emiDay" style={{ color: "#FFD166", fontWeight: 500 }}>
                           EMI Date (Day of Month) *
                         </Label>
                         <Input
@@ -295,16 +331,23 @@ function AddPayment() {
                           onChange={handleChange}
                           required
                           placeholder="e.g., 5 for 5th of every month"
-                          style={{ backgroundColor: "rgba(255, 255, 255, 0.1)", border: "1px solid rgba(255, 255, 255, 0.2)", color: "#ffffff" }}
+                          style={{ 
+                            backgroundColor: "rgba(255, 255, 255, 0.08)", 
+                            border: "1px solid rgba(255, 152, 0, 0.3)", 
+                            color: "#ffffff",
+                            borderRadius: "8px",
+                          }}
+                          onFocus={(e) => e.target.style.borderColor = "rgba(255, 152, 0, 0.6)"}
+                          onBlur={(e) => e.target.style.borderColor = "rgba(255, 152, 0, 0.3)"}
                         />
-                        <small className="text-white-50" style={{ fontSize: "0.85rem" }}>
+                        <small style={{ fontSize: "0.85rem", color: "#BA68C8" }}>
                           We will auto-adjust for shorter months.
                         </small>
                       </FormGroup>
                     </Col>
                     <Col md="4">
                       <FormGroup>
-                        <Label for="endDate" style={{ color: "#ffffff" }}>
+                        <Label for="endDate" style={{ color: "#FFD166", fontWeight: 500 }}>
                           End Date {formData.emiType === "ending" && "*"}
                         </Label>
                         <Input
@@ -316,10 +359,17 @@ function AddPayment() {
                           required={formData.emiType === "ending"}
                           disabled={formData.emiType === "recurring"}
                           min={formData.startDate}
-                          style={{ backgroundColor: "rgba(255, 255, 255, 0.1)", border: "1px solid rgba(255, 255, 255, 0.2)", color: "#ffffff" }}
+                          style={{ 
+                            backgroundColor: formData.emiType === "recurring" ? "rgba(255, 255, 255, 0.04)" : "rgba(255, 255, 255, 0.08)", 
+                            border: "1px solid rgba(255, 152, 0, 0.3)", 
+                            color: formData.emiType === "recurring" ? "#888" : "#ffffff",
+                            borderRadius: "8px",
+                          }}
+                          onFocus={(e) => e.target.style.borderColor = "rgba(255, 152, 0, 0.6)"}
+                          onBlur={(e) => e.target.style.borderColor = "rgba(255, 152, 0, 0.3)"}
                         />
                         {formData.emiType === "recurring" && (
-                          <small className="text-white-50" style={{ fontSize: "0.85rem" }}>
+                          <small style={{ fontSize: "0.85rem", color: "#BA68C8" }}>
                             Not required for recurring EMIs
                           </small>
                         )}
@@ -330,7 +380,7 @@ function AddPayment() {
                   <Row>
                     <Col md="12">
                       <FormGroup>
-                        <Label for="notes" style={{ color: "#ffffff" }}>
+                        <Label for="notes" style={{ color: "#FFD166", fontWeight: 500 }}>
                           Notes
                         </Label>
                         <Input
@@ -341,7 +391,14 @@ function AddPayment() {
                           onChange={handleChange}
                           rows="3"
                           placeholder="Additional notes or comments..."
-                          style={{ backgroundColor: "rgba(255, 255, 255, 0.1)", border: "1px solid rgba(255, 255, 255, 0.2)", color: "#ffffff" }}
+                          style={{ 
+                            backgroundColor: "rgba(255, 255, 255, 0.08)", 
+                            border: "1px solid rgba(255, 152, 0, 0.3)", 
+                            color: "#ffffff",
+                            borderRadius: "8px",
+                          }}
+                          onFocus={(e) => e.target.style.borderColor = "rgba(255, 152, 0, 0.6)"}
+                          onBlur={(e) => e.target.style.borderColor = "rgba(255, 152, 0, 0.3)"}
                         />
                       </FormGroup>
                     </Col>
@@ -354,8 +411,12 @@ function AddPayment() {
                         onClick={handleCancel}
                         disabled={saving}
                         style={{
-                          background: "linear-gradient(135deg, #6c757d 0%, #495057 100%)",
+                          background: "linear-gradient(135deg, rgba(108, 117, 125, 0.8) 0%, rgba(73, 80, 87, 0.7) 100%)",
                           border: "none",
+                          borderRadius: "8px",
+                          padding: "8px 20px",
+                          fontWeight: 600,
+                          boxShadow: "0 3px 10px rgba(108, 117, 125, 0.25)",
                         }}
                       >
                         Cancel
@@ -365,8 +426,12 @@ function AddPayment() {
                         type="submit"
                         disabled={saving}
                         style={{
-                          background: "linear-gradient(135deg, #1d8cf8 0%, #0056b3 100%)",
+                          background: "linear-gradient(135deg, rgba(255, 152, 0, 0.9) 0%, rgba(255, 193, 7, 0.8) 100%)",
                           border: "none",
+                          borderRadius: "8px",
+                          padding: "8px 20px",
+                          fontWeight: 600,
+                          boxShadow: "0 4px 15px rgba(255, 152, 0, 0.35)",
                         }}
                       >
                         {saving ? (
