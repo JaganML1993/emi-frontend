@@ -19,21 +19,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 
 // reactstrap components
-import {
-  Button,
-  Card,
-  CardHeader,
-  CardBody,
-  CardFooter,
-  CardText,
-  FormGroup,
-  Form,
-  Input,
-  Row,
-  Col,
-  Alert,
-  Spinner,
-} from "reactstrap";
+import { Button, Card, CardHeader, CardBody, CardFooter, FormGroup, Form, Input, Row, Col, Alert, Spinner } from "reactstrap";
 
 import api from "../config/axios";
 
@@ -119,192 +105,352 @@ function UserProfile() {
     }
   };
 
-  if (loading) {
-    return (
-      <div className="content">
-        <div style={{ 
-          display: 'flex', 
-          justifyContent: 'center', 
-          alignItems: 'center', 
-          minHeight: '400px'
-        }}>
-          <i 
-            className="tim-icons icon-refresh-02" 
-            style={{ 
-              fontSize: '3rem', 
-              color: '#FFFFFF',
-              animation: 'spin 1s linear infinite',
-              display: 'inline-block'
-            }} 
+  const renderContent = () => {
+    if (loading) {
+      return (
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "center",
+            alignItems: "center",
+            minHeight: "300px",
+          }}
+        >
+          <i
+            className="tim-icons icon-refresh-02"
+            style={{
+              fontSize: "2.5rem",
+              color: "#FFFFFF",
+              animation: "spin 1s linear infinite",
+              display: "inline-block",
+            }}
           />
+          <style dangerouslySetInnerHTML={{ __html: `
+            @keyframes spin {
+              from { transform: rotate(0deg); }
+              to { transform: rotate(360deg); }
+            }
+          ` }} />
         </div>
-        <style dangerouslySetInnerHTML={{__html: `
-          @keyframes spin {
-            from { transform: rotate(0deg); }
-            to { transform: rotate(360deg); }
-          }
-        `}} />
-      </div>
-    );
-  }
+      );
+    }
 
-  if (!user) {
+    if (!user) {
+      return (
+        <Alert
+          color="danger"
+          style={{
+            background: "rgba(239, 68, 68, 0.15)",
+            border: "1px solid rgba(239, 68, 68, 0.45)",
+            color: "#FCA5A5",
+            borderRadius: "12px",
+            padding: "1rem",
+          }}
+        >
+          Failed to load user profile
+        </Alert>
+      );
+    }
+
     return (
-      <div className="content">
-        <Alert color="danger">Failed to load user profile</Alert>
-      </div>
+      <Form onSubmit={handleSubmit}>
+        <Row>
+          <Col md="6">
+            <FormGroup>
+              <label>Full Name *</label>
+              <Input
+                name="name"
+                value={formData.name}
+                onChange={handleChange}
+                placeholder="Enter your full name"
+                type="text"
+                required
+              />
+            </FormGroup>
+          </Col>
+          <Col md="6">
+            <FormGroup>
+              <label>Email *</label>
+              <Input
+                name="email"
+                value={formData.email}
+                onChange={handleChange}
+                placeholder="Enter your email"
+                type="email"
+                required
+              />
+            </FormGroup>
+          </Col>
+        </Row>
+        <Row>
+          <Col md="6">
+            <FormGroup>
+              <label>Currency</label>
+              <Input
+                name="currency"
+                value={formData.currency}
+                onChange={handleChange}
+                type="select"
+              >
+                <option value="INR">INR (₹) - Indian Rupee</option>
+                <option value="USD">USD ($) - US Dollar</option>
+                <option value="EUR">EUR (€) - Euro</option>
+                <option value="GBP">GBP (£) - British Pound</option>
+                <option value="JPY">JPY (¥) - Japanese Yen</option>
+                <option value="CAD">CAD (C$) - Canadian Dollar</option>
+                <option value="AUD">AUD (A$) - Australian Dollar</option>
+              </Input>
+            </FormGroup>
+          </Col>
+          <Col md="6">
+            <FormGroup>
+              <label>Monthly Income</label>
+              <Input
+                name="monthlyIncome"
+                value={formData.monthlyIncome}
+                onChange={handleChange}
+                placeholder="Enter monthly income"
+                type="number"
+                step="0.01"
+                min="0"
+              />
+            </FormGroup>
+          </Col>
+        </Row>
+        <Row>
+          <Col md="12" className="d-flex justify-content-end gap-2">
+            <Button
+              color="secondary"
+              onClick={() => fetchUserProfile()}
+              disabled={saving}
+            >
+              Refresh
+            </Button>
+            <Button color="primary" type="submit" disabled={saving}>
+              {saving ? (
+                <>
+                  <Spinner size="sm" className="me-2" />
+                  Saving...
+                </>
+              ) : (
+                "Save Changes"
+              )}
+            </Button>
+          </Col>
+        </Row>
+      </Form>
     );
+  };
+
+  if (loading || !user) {
+    return <div className="content">{renderContent()}</div>;
   }
 
   return (
-    <div className="content">
+    <>
+      <style>
+        {`
+          select option {
+            background-color: #2d2b42 !important;
+            color: #ffffff !important;
+          }
+          select:focus option {
+            background-color: #1e1e2d !important;
+            color: #ffffff !important;
+          }
+          select option:checked {
+            background-color: #1d8cf8 !important;
+            color: #ffffff !important;
+          }
+          select option:hover {
+            background-color: #1e1e2d !important;
+            color: #ffffff !important;
+          }
+        `}
+      </style>
+      <div className="content">
         <Row>
           <Col md="8">
-            <Card>
-              <CardHeader>
-                <h5 className="title">Edit Profile</h5>
-              </CardHeader>
-              <CardBody>
-                {error && <Alert color="danger">{error}</Alert>}
-                {success && <Alert color="success">{success}</Alert>}
-                
-                <Form onSubmit={handleSubmit}>
-                  <Row>
-                    <Col md="6">
-                      <FormGroup>
-                        <label>Full Name *</label>
-                        <Input
-                          name="name"
-                          value={formData.name}
-                          onChange={handleChange}
-                          placeholder="Enter your full name"
-                          type="text"
-                          required
-                        />
-                      </FormGroup>
-                    </Col>
-                    <Col md="6">
-                      <FormGroup>
-                        <label>Email *</label>
-                        <Input
-                          name="email"
-                          value={formData.email}
-                          onChange={handleChange}
-                          placeholder="Enter your email"
-                          type="email"
-                          required
-                        />
-                      </FormGroup>
-                    </Col>
-                  </Row>
-                  <Row>
-                    <Col md="6">
-                      <FormGroup>
-                        <label>Currency</label>
-                        <Input
-                          name="currency"
-                          value={formData.currency}
-                          onChange={handleChange}
-                          type="select"
-                        >
-                          <option value="INR">INR (₹) - Indian Rupee</option>
-                          <option value="USD">USD ($) - US Dollar</option>
-                          <option value="EUR">EUR (€) - Euro</option>
-                          <option value="GBP">GBP (£) - British Pound</option>
-                          <option value="JPY">JPY (¥) - Japanese Yen</option>
-                          <option value="CAD">CAD (C$) - Canadian Dollar</option>
-                          <option value="AUD">AUD (A$) - Australian Dollar</option>
-                        </Input>
-                      </FormGroup>
-                    </Col>
-                    <Col md="6">
-                      <FormGroup>
-                        <label>Monthly Income</label>
-                        <Input
-                          name="monthlyIncome"
-                          value={formData.monthlyIncome}
-                          onChange={handleChange}
-                          placeholder="Enter monthly income"
-                          type="number"
-                          step="0.01"
-                          min="0"
-                        />
-                      </FormGroup>
-                    </Col>
-                  </Row>
-                </Form>
-              </CardBody>
-              <CardFooter>
-                <Button 
-                  className="btn-fill" 
-                  color="primary" 
-                  type="submit"
-                  onClick={handleSubmit}
-                  disabled={saving}
+            <Card
+              style={{
+                background: "linear-gradient(135deg, #1E1E1E 0%, #2d2b42 100%)",
+                border: "1px solid rgba(255, 152, 0, 0.3)",
+                borderRadius: "15px",
+                boxShadow: "0 8px 32px rgba(255, 152, 0, 0.18)",
+              }}
+            >
+              <CardHeader
+                style={{
+                  background:
+                    "linear-gradient(135deg, rgba(255, 152, 0, 0.2) 0%, rgba(255, 193, 7, 0.15) 100%)",
+                  borderBottom: "1px solid rgba(255, 152, 0, 0.3)",
+                  borderRadius: "15px 15px 0 0",
+                  padding: "0.75rem 1rem",
+                }}
+              >
+                <h5
+                  className="title"
+                  style={{
+                    color: "#ffffff",
+                    fontWeight: "700",
+                    margin: 0,
+                    fontSize: "1.25rem",
+                  }}
                 >
-                  {saving ? (
-                    <>
-                      <Spinner size="sm" className="me-2" />
-                      Saving...
-                    </>
-                  ) : (
-                    "Save Changes"
-                  )}
-                </Button>
-              </CardFooter>
+                  <i className="tim-icons icon-single-02 mr-2" style={{ color: "#FFD166" }}></i>
+                  Profile Settings
+                </h5>
+                <p className="mb-0" style={{ fontSize: "0.85rem", color: "#FFD166" }}>
+                  Update your personal details and preferences
+                </p>
+              </CardHeader>
+              <CardBody style={{ padding: "1.5rem", color: "#ffffff" }}>
+                {error && (
+                  <Alert
+                    color="danger"
+                    style={{
+                      background: "rgba(239, 68, 68, 0.15)",
+                      border: "1px solid rgba(239, 68, 68, 0.45)",
+                      color: "#FCA5A5",
+                      borderRadius: "12px",
+                    }}
+                  >
+                    {error}
+                  </Alert>
+                )}
+                {success && (
+                  <Alert
+                    color="success"
+                    style={{
+                      background: "rgba(34, 197, 94, 0.15)",
+                      border: "1px solid rgba(34, 197, 94, 0.45)",
+                      color: "#BBF7D0",
+                      borderRadius: "12px",
+                    }}
+                  >
+                    {success}
+                  </Alert>
+                )}
+                {renderContent()}
+              </CardBody>
             </Card>
           </Col>
           <Col md="4">
-            <Card className="card-user">
-              <CardBody>
-                <CardText />
-                <div className="author">
-                  <div className="block block-one" />
-                  <div className="block block-two" />
-                  <div className="block block-three" />
-                  <div className="block block-four" />
-                  <a href="#pablo" onClick={(e) => e.preventDefault()}>
+            <Card
+              style={{
+                background: "linear-gradient(135deg, rgba(15, 23, 42, 0.9) 0%, rgba(30, 41, 59, 0.85) 100%)",
+                border: "1px solid rgba(127, 183, 255, 0.25)",
+                borderRadius: "15px",
+                boxShadow: "0 8px 28px rgba(15, 23, 42, 0.45)",
+              }}
+            >
+              <CardBody style={{ padding: "1.5rem" }}>
+                <div
+                  style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    gap: "12px",
+                    textAlign: "center",
+                  }}
+                >
+                  <div
+                    style={{
+                      width: 80,
+                      height: 80,
+                      borderRadius: "50%",
+                      background: "rgba(127, 183, 255, 0.2)",
+                      border: "2px solid rgba(127, 183, 255, 0.45)",
+                      display: "flex",
+                      justifyContent: "center",
+                      alignItems: "center",
+                    }}
+                  >
                     <img
                       alt="User Avatar"
-                      className="avatar"
+                      style={{ width: 70, height: 70, borderRadius: "50%" }}
                       src={require("assets/img/default-avatar.png")}
                     />
-                    <h5 className="title">{user.name}</h5>
-                  </a>
-                  <p className="description">EMI Tracker</p>
+                  </div>
+                  <div>
+                    <h5 style={{ color: "#FFFFFF", marginBottom: "6px", fontWeight: 600 }}>{user.name}</h5>
+                    <p style={{ color: "#7FB7FF", fontSize: "0.8rem", margin: 0 }}>EMI Tracker Member</p>
+                  </div>
                 </div>
-                <div className="card-description">
-                  <div className="mb-3">
-                    <strong>Email:</strong> {user.email}
+                <div
+                  style={{
+                    marginTop: "20px",
+                    display: "grid",
+                    gap: "10px",
+                    fontSize: "0.8rem",
+                    color: "#E2E8F0",
+                  }}
+                >
+                  <div>
+                    <strong style={{ color: "#7FB7FF" }}>Email:</strong>
+                    <div>{user.email}</div>
                   </div>
-                  <div className="mb-3">
-                    <strong>Currency:</strong> {user.currency}
+                  <div>
+                    <strong style={{ color: "#7FB7FF" }}>Currency:</strong>
+                    <div>{user.currency}</div>
                   </div>
-                  <div className="mb-3">
-                    <strong>Monthly Income:</strong> {user.currency} {user.monthlyIncome?.toLocaleString() || 0}
+                  <div>
+                    <strong style={{ color: "#7FB7FF" }}>Monthly Income:</strong>
+                    <div>
+                      {user.currency} {user.monthlyIncome?.toLocaleString() || 0}
+                    </div>
                   </div>
-                  <div className="mb-3">
-                    <strong>Member Since:</strong> {new Date(user.createdAt).toLocaleDateString()}
+                  <div>
+                    <strong style={{ color: "#7FB7FF" }}>Member Since:</strong>
+                    <div>{new Date(user.createdAt).toLocaleDateString()}</div>
                   </div>
                 </div>
               </CardBody>
-              <CardFooter>
-                <div className="button-container">
-                  <Button className="btn-icon btn-round" color="info">
+              <CardFooter
+                style={{
+                  borderTop: "1px solid rgba(127, 183, 255, 0.25)",
+                  background: "rgba(15, 23, 42, 0.75)",
+                  borderRadius: "0 0 15px 15px",
+                }}
+              >
+                <div style={{ display: "flex", justifyContent: "center", gap: "10px" }}>
+                  <Button
+                    className="btn-icon btn-round"
+                    color="info"
+                    style={{
+                      background: "linear-gradient(135deg, rgba(0, 191, 255, 0.8) 0%, rgba(30, 144, 255, 0.7) 100%)",
+                      border: "none",
+                    }}
+                  >
                     <i className="tim-icons icon-settings" />
                   </Button>
-                  <Button className="btn-icon btn-round" color="success">
-                    <i className="tim-icons icon-chart-pie-36" />
+                  <Button
+                    className="btn-icon btn-round"
+                    color="success"
+                    style={{
+                      background: "linear-gradient(135deg, rgba(102, 187, 106, 0.8) 0%, rgba(76, 175, 80, 0.7) 100%)",
+                      border: "none",
+                    }}
+                  >
+                    <i className="tim-icons icon-bell-55" />
                   </Button>
-                  <Button className="btn-icon btn-round" color="warning">
-                    <i className="tim-icons icon-money-coins" />
+                  <Button
+                    className="btn-icon btn-round"
+                    color="warning"
+                    style={{
+                      background: "linear-gradient(135deg, rgba(255, 152, 0, 0.85) 0%, rgba(255, 193, 7, 0.75) 100%)",
+                      border: "none",
+                    }}
+                  >
+                    <i className="tim-icons icon-coins" />
                   </Button>
                 </div>
               </CardFooter>
             </Card>
           </Col>
         </Row>
-    </div>
+      </div>
+    </>
   );
 }
 

@@ -259,9 +259,6 @@ function AddPayment() {
                           <option value="ending" style={{ backgroundColor: "#2d2b42", color: "#ffffff" }}>Ending EMI</option>
                           <option value="recurring" style={{ backgroundColor: "#2d2b42", color: "#ffffff" }}>Recurring EMI</option>
                         </Input>
-                        <small style={{ fontSize: "0.85rem", color: "#BA68C8" }}>
-                          Ending: One-time with end date. Recurring: Ongoing like rent/subscriptions
-                        </small>
                       </FormGroup>
                     </Col>
                     <Col md="6">
@@ -340,9 +337,6 @@ function AddPayment() {
                           onFocus={(e) => e.target.style.borderColor = "rgba(255, 152, 0, 0.6)"}
                           onBlur={(e) => e.target.style.borderColor = "rgba(255, 152, 0, 0.3)"}
                         />
-                        <small style={{ fontSize: "0.85rem", color: "#BA68C8" }}>
-                          We will auto-adjust for shorter months.
-                        </small>
                       </FormGroup>
                     </Col>
                     <Col md="4">

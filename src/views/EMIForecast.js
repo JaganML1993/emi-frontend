@@ -4,9 +4,10 @@ import { addMonths, format, endOfMonth } from "date-fns";
 import api from "../config/axios";
 
 function EMIForecast() {
-  const [months, setMonths] = useState(12);
+  const [months, setMonths] = useState(6);
   const [payments, setPayments] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [isMobile, setIsMobile] = useState(false);
 
   const fetchPayments = useCallback(async () => {
     try {
@@ -28,6 +29,18 @@ function EMIForecast() {
   useEffect(() => {
     fetchPayments();
   }, [fetchPayments]);
+
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth <= 768);
+    };
+    if (typeof window === "undefined") {
+      return;
+    }
+    handleResize();
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
 
   const now = useMemo(() => new Date(), []);
 
@@ -71,7 +84,67 @@ function EMIForecast() {
     return buckets;
   }, [payments, months, now]);
 
-  const maxValue = useMemo(() => Math.max(1, ...series.map((m) => m.total)), [series]);
+  const maxTrendTotal = useMemo(() => {
+    if (!series.length) return 0;
+    return Math.max(...series.map((m) => m.total));
+  }, [series]);
+
+  const trendContainerStyle = useMemo(() => {
+    if (isMobile) {
+      return {
+        display: "flex",
+        gap: "12px",
+        overflowX: "auto",
+        padding: "4px 8px 8px",
+        margin: "0 -1rem",
+        scrollSnapType: "x mandatory",
+        scrollbarWidth: "none",
+        WebkitOverflowScrolling: "touch",
+      };
+    }
+    return {
+      display: "grid",
+      gap: "16px",
+      gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
+    };
+  }, [isMobile]);
+
+  const forecastCardStyle = useCallback(
+    (isCurrentMonth) => {
+      const base = {
+        background: isCurrentMonth
+          ? "linear-gradient(135deg, rgba(0, 191, 255, 0.3) 0%, rgba(30, 144, 255, 0.2) 100%)"
+          : "linear-gradient(135deg, rgba(68, 138, 255, 0.18) 0%, rgba(30, 136, 229, 0.12) 100%)",
+        border: isCurrentMonth
+          ? "1px solid rgba(0, 191, 255, 0.6)"
+          : "1px solid rgba(68, 138, 255, 0.4)",
+        borderRadius: "12px",
+        padding: isMobile ? "12px" : "16px",
+        boxShadow: isCurrentMonth
+          ? "0 6px 18px rgba(0, 191, 255, 0.25)"
+          : "0 4px 14px rgba(68, 138, 255, 0.18)",
+        display: "flex",
+        flexDirection: "column",
+        gap: isMobile ? "8px" : "10px",
+        backdropFilter: "blur(8px)",
+        WebkitBackdropFilter: "blur(8px)",
+        position: "relative",
+        overflow: "hidden",
+      };
+
+      if (isMobile) {
+        return {
+          ...base,
+          minWidth: 220,
+          flex: "0 0 220px",
+          scrollSnapAlign: "start",
+        };
+      }
+
+      return base;
+    },
+    [isMobile]
+  );
 
   // Calculate summary statistics
   const stats = useMemo(() => {
@@ -103,41 +176,6 @@ function EMIForecast() {
     const recurringCount = payments.filter((p) => p.emiType === "recurring" && p.status === "active").length;
     return { endingSoon, recurringCount };
   }, [payments, now]);
-
-  const MonthBar = ({ label, value }) => {
-    const heightPct = Math.max(2, Math.round((value / maxValue) * 100));
-    return (
-      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8 }}>
-        <div
-          style={{
-            height: 140,
-            width: 20,
-            display: "flex",
-            alignItems: "flex-end",
-            background: "rgba(255,255,255,0.05)",
-            border: "1px solid rgba(255,255,255,0.1)",
-            borderRadius: 8,
-            overflow: "hidden",
-          }}
-          title={`₹${value.toLocaleString("en-IN", { maximumFractionDigits: 2 })}`}
-        >
-          <div
-            style={{
-              width: "100%",
-              height: `${heightPct}%`,
-              background: "linear-gradient(180deg, rgba(255, 82, 82, 0.95) 0%, rgba(255, 107, 107, 0.85) 50%, rgba(255, 152, 0, 0.75) 100%)",
-              boxShadow: "0 4px 12px rgba(255, 82, 82, 0.4), 0 2px 6px rgba(255, 152, 0, 0.3)",
-              transition: "height 0.3s ease",
-            }}
-          />
-        </div>
-        <div style={{ color: "#FFFFFF", fontSize: "0.7rem", textAlign: "center" }}>{label}</div>
-        <div style={{ color: "#CCCCCC", fontSize: "0.7rem" }}>
-          ₹{value.toLocaleString("en-IN", { maximumFractionDigits: 2 })}
-        </div>
-      </div>
-    );
-  };
 
   const handleMonthsChange = (delta) => {
     setMonths((prev) => Math.min(12, Math.max(1, prev + delta)));
@@ -417,11 +455,11 @@ function EMIForecast() {
               <Row>
                 <Col sm="6">
                   <CardTitle tag="h4" style={{ color: "#FFFFFF", margin: 0, fontSize: "1.25rem", fontWeight: 600 }}>
-                    <i className="tim-icons icon-chart-bar-32 mr-2" style={{ color: "#FFD166" }}></i>
-                    EMI Forecast
+                    <i className="tim-icons icon-chart-line-32 mr-2" style={{ color: "#00BFFF" }}></i>
+                    EMI Forecast Trend
                   </CardTitle>
                   <p className="mb-0" style={{ fontSize: "0.85rem", color: "#FFD166" }}>
-                    Month-wise EMI totals from the current month
+                    Monthly EMI totals trend over the forecast period
                   </p>
                 </Col>
                 <Col sm="6" className="text-right" style={{ display: "flex", gap: 8, alignItems: "center", justifyContent: "flex-end" }}>
@@ -471,24 +509,108 @@ function EMIForecast() {
               </Row>
             </CardHeader>
             <CardBody style={{ padding: "1rem", background: "#1E1E1E" }}>
+              {isMobile && (
+                <style>
+                  {`
+                    .emi-forecast-trend-scroll::-webkit-scrollbar {
+                      display: none;
+                    }
+                    .emi-forecast-trend-scroll {
+                      -ms-overflow-style: none;
+                      scrollbar-width: none;
+                    }
+                  `}
+                </style>
+              )}
               {loading ? (
                 <div className="text-center py-4">
                   <Spinner color="primary" />
                 </div>
+              ) : series.length > 0 ? (
+                <div
+                  className={isMobile ? "emi-forecast-trend-scroll" : undefined}
+                  style={trendContainerStyle}
+                >
+                  {series.map((bucket) => {
+                    const total = Number(bucket.total || 0);
+                    const formattedTotal = `₹${total.toLocaleString("en-IN", { maximumFractionDigits: 2 })}`;
+                    const rawProgress = maxTrendTotal > 0 ? (total / maxTrendTotal) * 100 : 0;
+                    const progress = total > 0 ? Math.max(6, rawProgress) : 0;
+                    const isCurrentMonth = bucket.key === format(now, "yyyy-MM");
+                    const cardStyle = forecastCardStyle(isCurrentMonth);
+
+                    return (
+                      <div key={bucket.key} style={cardStyle}>
+                        {isCurrentMonth && (
+                          <span
+                            style={{
+                              position: "absolute",
+                              top: 10,
+                              right: 12,
+                              fontSize: "0.7rem",
+                              fontWeight: 600,
+                              color: "#00BFFF",
+                              background: "rgba(0, 191, 255, 0.15)",
+                              border: "1px solid rgba(0, 191, 255, 0.5)",
+                              padding: "2px 8px",
+                              borderRadius: "9999px",
+                              letterSpacing: "0.02em",
+                            }}
+                          >
+                            Current
+                          </span>
+                        )}
+                        <div style={{ fontSize: "0.85rem", color: "#9FA8DA", fontWeight: 600 }}>
+                          {bucket.label}
+                        </div>
+                        <div
+                          style={{
+                            color: "#FFFFFF",
+                            fontSize: isMobile ? "1.25rem" : "1.5rem",
+                            fontWeight: 700,
+                            display: "flex",
+                            alignItems: "baseline",
+                            gap: "8px",
+                          }}
+                        >
+                          <i className="tim-icons icon-coins" style={{ fontSize: isMobile ? "1rem" : "1.1rem", color: "#FFD166" }} />
+                          <span>{formattedTotal}</span>
+                        </div>
+                        <div style={{ fontSize: isMobile ? "0.7rem" : "0.75rem", color: "rgba(255,255,255,0.6)" }}>
+                          EMI total for the month
+                        </div>
+                        <div
+                          style={{
+                            height: isMobile ? "5px" : "6px",
+                            borderRadius: "999px",
+                            background: "rgba(255, 255, 255, 0.12)",
+                            overflow: "hidden",
+                          }}
+                        >
+                          <div
+                            style={{
+                              width: `${progress}%`,
+                              maxWidth: "100%",
+                              background: "linear-gradient(90deg, #FFD166 0%, #FF9F1C 100%)",
+                              height: "100%",
+                              transition: "width 0.3s ease",
+                            }}
+                          />
+                        </div>
+                        {isMobile && (
+                          <div style={{ fontSize: "0.65rem", color: "rgba(255,255,255,0.55)" }}>
+                            {progress > 0 ? `${progress.toFixed(0)}% of peak month` : "No EMIs scheduled"}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
               ) : (
-                <div style={{ overflowX: "auto" }}>
-                  <div
-                    style={{
-                      display: "grid",
-                      gridAutoFlow: "column",
-                      gridAutoColumns: "minmax(64px, 1fr)",
-                      gap: 14,
-                      padding: "8px 4px",
-                    }}
-                  >
-                    {series.map((m) => (
-                      <MonthBar key={m.key} label={m.label} value={m.total} />
-                    ))}
+                <div className="text-center py-4" style={{ color: "#CCCCCC" }}>
+                  <i className="tim-icons icon-chart-line-32" style={{ fontSize: "3rem", opacity: 0.5, marginBottom: "1rem" }}></i>
+                  <div style={{ fontSize: "1rem" }}>
+                    No payment data available for forecast
                   </div>
                 </div>
               )}
