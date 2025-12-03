@@ -18,10 +18,29 @@ function Dashboard() {
       const response = await api.get("/api/payments/transactions/upcoming", {
         headers: { Authorization: `Bearer ${token}` },
       });
-      const data = response.data.data || [];
+      
+      console.log("Dashboard API Response:", response.data);
+      
+      // Handle different response structures
+      let data = [];
+      if (response.data) {
+        if (Array.isArray(response.data)) {
+          data = response.data;
+        } else if (response.data.data) {
+          data = response.data.data;
+        } else if (response.data.success && response.data.data) {
+          data = response.data.data;
+        }
+      }
+      
+      console.log("Dashboard parsed transactions:", data);
+      console.log("Number of transactions:", data.length);
+      
+      // Filter out any transactions without payment data
+      const validData = data.filter(t => t.payment);
       
       // Sort: pending first, then by EMI day from payment object
-      const sorted = [...data].sort((a, b) => {
+      const sorted = [...validData].sort((a, b) => {
         const aPaid = a.status === 'paid' ? 1 : 0;
         const bPaid = b.status === 'paid' ? 1 : 0;
         if (aPaid !== bPaid) return aPaid - bPaid;
@@ -30,10 +49,13 @@ function Dashboard() {
         const bEmiDay = b.payment?.emiDay || new Date(b.paymentDate).getDate();
         return aEmiDay - bEmiDay;
       });
+      
+      console.log("Dashboard sorted transactions:", sorted);
       setUpcomingTransactions(sorted);
       return true;
     } catch (error) {
       console.error("Error fetching upcoming transactions:", error);
+      console.error("Error details:", error.response?.data || error.message);
       setUpcomingTransactions([]);
       return false;
     }
