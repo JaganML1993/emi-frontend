@@ -132,7 +132,7 @@ function Dashboard() {
     }
   };
 
-  // Calculate pending EMIs for a payment (same logic as Payments page)
+  // Calculate pending EMIs for a payment (kept consistent with Payments page)
   const calculatePendingEMIs = (payment) => {
     if (!payment) return "-";
 
@@ -146,39 +146,31 @@ function Dashboard() {
 
     const startDate = new Date(payment.startDate);
     const endDate = new Date(payment.endDate);
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
     startDate.setHours(0, 0, 0, 0);
     endDate.setHours(0, 0, 0, 0);
 
-    // If end date has passed, no pending EMIs
-    if (today > endDate) {
+    // If the schedule is invalid, nothing is pending
+    if (endDate < startDate) {
       return 0;
     }
 
+    const emiDay = payment.emiDay || startDate.getDate();
     const paidCount = typeof payment.paidCount === "number" ? payment.paidCount : 0;
 
-    const emiDay = payment.emiDay || startDate.getDate();
-    const currentYear = today.getFullYear();
-    const currentMonth = today.getMonth();
+    const startYear = startDate.getFullYear();
+    const startMonth = startDate.getMonth();
     const endYear = endDate.getFullYear();
     const endMonth = endDate.getMonth();
 
     const daysInMonth = (year, month) => new Date(year, month + 1, 0).getDate();
 
-    let remainingEMIs = 0;
-
-    let yearDiff = endYear - currentYear;
-    let monthDiff = endMonth - currentMonth;
-    let totalMonths = yearDiff * 12 + monthDiff + 1;
-
-    if (totalMonths < 0) {
-      totalMonths = 0;
-    }
+    // Count total scheduled EMIs from start to end (inclusive)
+    let totalEmis = 0;
+    const totalMonths = (endYear - startYear) * 12 + (endMonth - startMonth) + 1;
 
     for (let i = 0; i < totalMonths; i++) {
-      let year = currentYear;
-      let month = currentMonth + i;
+      let year = startYear;
+      let month = startMonth + i;
 
       while (month > 11) {
         month -= 12;
@@ -189,13 +181,12 @@ function Dashboard() {
       paymentDate.setHours(0, 0, 0, 0);
 
       if (paymentDate <= endDate) {
-        remainingEMIs += 1;
+        totalEmis += 1;
       }
     }
 
-    const pendingEMIs = Math.max(0, remainingEMIs - paidCount);
-
-    return pendingEMIs;
+    // Pending = total scheduled - already paid
+    return Math.max(0, totalEmis - paidCount);
   };
 
   // Calculate summary stats for current month (memoized for performance)
@@ -569,7 +560,11 @@ function Dashboard() {
                     const dueLabel = format(paymentDate, 'dd MMM');
                     const paymentData = paymentMap.get(t.payment?._id || t.paymentId) || t.payment;
                     const pendingEmis = calculatePendingEMIs(paymentData);
-                    const pendingLabel = typeof pendingEmis === "number" ? pendingEmis : pendingEmis ?? "-";
+                    const pendingLabel = (() => {
+                      if (pendingEmis === "Ongoing") return "♾";
+                      if (typeof pendingEmis === "number") return pendingEmis;
+                      return pendingEmis ?? "-";
+                    })();
                     
                     // Determine payment status and matching colors
                     let paymentStatus, statusLabel, statusColor, statusShadow, badgeColor, borderColor, statusIcon, statusIconColor;

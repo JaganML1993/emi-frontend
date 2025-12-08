@@ -156,73 +156,47 @@ function Payments() {
 
     const startDate = new Date(payment.startDate);
     const endDate = new Date(payment.endDate);
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
     startDate.setHours(0, 0, 0, 0);
     endDate.setHours(0, 0, 0, 0);
 
-    // If end date has passed, no pending EMIs
-    if (today > endDate) {
+    // If the schedule is invalid, nothing is pending
+    if (endDate < startDate) {
       return 0;
     }
 
-    // Get paid count from backend - this is based on PaymentTransaction status='paid'
-    // When transactions are marked as paid in dashboard, this count increases
+    const emiDay = payment.emiDay || startDate.getDate();
     const paidCount = typeof payment.paidCount === "number" ? payment.paidCount : 0;
 
-    // Calculate remaining EMIs from today until end date
-    const emiDay = payment.emiDay || startDate.getDate();
-    const currentYear = today.getFullYear();
-    const currentMonth = today.getMonth();
-    const currentDay = today.getDate();
+    const startYear = startDate.getFullYear();
+    const startMonth = startDate.getMonth();
     const endYear = endDate.getFullYear();
     const endMonth = endDate.getMonth();
-    
-    // Helper function to get days in month
+
     const daysInMonth = (year, month) => new Date(year, month + 1, 0).getDate();
-    
-    // Count EMIs from current month until end date (inclusive)
-    // Example: Nov 2025 to Jan 2026 = Nov, Dec, Jan = 3 EMIs
-    let remainingEMIs = 0;
-    
-    // Calculate number of months from current month to end month (inclusive)
-    let yearDiff = endYear - currentYear;
-    let monthDiff = endMonth - currentMonth;
-    let totalMonths = yearDiff * 12 + monthDiff + 1; // +1 to include both start and end months
-    
-    // Ensure we don't count negative months
-    if (totalMonths < 0) {
-      totalMonths = 0;
-    }
-    
-    // Count each month's payment date
+
+    // Count total scheduled EMIs from start to end (inclusive)
+    let totalEmis = 0;
+    const totalMonths = (endYear - startYear) * 12 + (endMonth - startMonth) + 1;
+
     for (let i = 0; i < totalMonths; i++) {
-      let year = currentYear;
-      let month = currentMonth + i;
-      
-      // Handle year rollover
+      let year = startYear;
+      let month = startMonth + i;
+
       while (month > 11) {
         month -= 12;
         year += 1;
       }
-      
-      // Calculate payment date for this month
+
       const paymentDate = new Date(year, month, Math.min(emiDay, daysInMonth(year, month)));
       paymentDate.setHours(0, 0, 0, 0);
-      
-      // Count if payment date is on or before the end date
+
       if (paymentDate <= endDate) {
-        remainingEMIs += 1;
+        totalEmis += 1;
       }
     }
 
-    // Calculate pending EMIs = Remaining EMIs - EMIs paid (based on dashboard status)
-    // This shows how many EMIs are still pending from today until the end date
-    // Example: If payment ends Jan 1, 2026 and today is Nov 2024,
-    // remaining would be Nov, Dec, Jan = 3, minus any paid = pending
-    const pendingEMIs = Math.max(0, remainingEMIs - paidCount);
-
-    return pendingEMIs;
+    // Pending = total scheduled - already paid
+    return Math.max(0, totalEmis - paidCount);
   };
 
   if (loading) {
