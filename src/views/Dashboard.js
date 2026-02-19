@@ -8,6 +8,7 @@ function Dashboard() {
   const navigate = useNavigate();
   const [upcomingTransactions, setUpcomingTransactions] = useState([]);
   const [payments, setPayments] = useState([]);
+  const [houseSavingsTotal, setHouseSavingsTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [showPaidEMIs, setShowPaidEMIs] = useState(false);
   const [months, setMonths] = useState(6);
@@ -77,14 +78,27 @@ function Dashboard() {
     }
   }, []);
 
+  const fetchHouseSavings = useCallback(async () => {
+    try {
+      const response = await api.get("/api/house-savings");
+      const entries = response.data?.data || [];
+      const total = entries.reduce((sum, e) => sum + Number(e.amount || 0), 0);
+      setHouseSavingsTotal(total);
+      return true;
+    } catch {
+      setHouseSavingsTotal(0);
+      return false;
+    }
+  }, []);
+
   useEffect(() => {
     const loadData = async () => {
       setLoading(true);
-      await Promise.all([fetchUpcomingTransactions(), fetchPayments()]);
+      await Promise.all([fetchUpcomingTransactions(), fetchPayments(), fetchHouseSavings()]);
       setLoading(false);
     };
     loadData();
-  }, [fetchUpcomingTransactions, fetchPayments]);
+  }, [fetchUpcomingTransactions, fetchPayments, fetchHouseSavings]);
 
 
   const handleMarkAsPaid = async (transactionId, transaction) => {
@@ -395,7 +409,7 @@ function Dashboard() {
     <div className="content">
         {/* Summary Cards */}
         <Row className="mb-4">
-          <Col md="4">
+          <Col md="3">
             <Card
               style={{
                 background: "linear-gradient(135deg, rgba(102, 187, 106, 0.25) 0%, rgba(76, 175, 80, 0.15) 100%)",
@@ -417,7 +431,7 @@ function Dashboard() {
               </CardBody>
             </Card>
           </Col>
-          <Col md="4">
+          <Col md="3">
             <Card
               style={{
                 background: "linear-gradient(135deg, rgba(255, 82, 82, 0.25) 0%, rgba(255, 107, 107, 0.15) 100%)",
@@ -439,7 +453,7 @@ function Dashboard() {
               </CardBody>
             </Card>
           </Col>
-          <Col md="4">
+          <Col md="3">
             <Card
               style={{
                 background: "linear-gradient(135deg, rgba(0, 191, 255, 0.25) 0%, rgba(30, 144, 255, 0.15) 100%)",
@@ -457,6 +471,30 @@ function Dashboard() {
                 </div>
                 <div style={{ color: "#FFFFFF", fontSize: "2rem", fontWeight: 600 }}>
                   ₹{totalEMIAmount.toLocaleString()}
+                </div>
+              </CardBody>
+            </Card>
+          </Col>
+          <Col md="3">
+            <Card
+              style={{
+                background: "linear-gradient(135deg, rgba(102, 187, 106, 0.25) 0%, rgba(76, 175, 80, 0.15) 100%)",
+                border: "1px solid rgba(102, 187, 106, 0.5)",
+                borderRadius: "12px",
+                backdropFilter: "blur(10px)",
+                WebkitBackdropFilter: "blur(10px)",
+                boxShadow: "0 4px 15px rgba(102, 187, 106, 0.2)",
+                cursor: "pointer",
+              }}
+              onClick={() => navigate("/admin/house-savings")}
+            >
+              <CardBody style={{ padding: "1.5rem" }}>
+                <div style={{ color: "#66BB6A", fontSize: "0.9rem", fontWeight: 500, marginBottom: "8px" }}>
+                  <i className="tim-icons icon-bank mr-1" style={{ color: "#66BB6A" }}></i>
+                  House Savings
+                </div>
+                <div style={{ color: "#FFFFFF", fontSize: "2rem", fontWeight: 600 }}>
+                  ₹{houseSavingsTotal.toLocaleString("en-IN", { maximumFractionDigits: 2 })}
                 </div>
               </CardBody>
             </Card>

@@ -22,6 +22,9 @@ const AddPayment = lazy(() => import("views/AddPayment.js"));
 const EditPayment = lazy(() => import("views/EditPayment.js"));
 const UserProfile = lazy(() => import("views/UserProfile.js"));
 const EMIForecast = lazy(() => import("views/EMIForecast.js"));
+const RolesManagement = lazy(() => import("views/RolesManagement.js"));
+const Users = lazy(() => import("views/Users.js"));
+const HouseSavings = lazy(() => import("views/HouseSavings.js"));
 
 var routes = [
   {
@@ -47,11 +50,34 @@ var routes = [
     hidden: true,
   },
   {
+    path: "/users",
+    name: "Users",
+    icon: "tim-icons icon-single-02",
+    component: Users,
+    layout: "/admin",
+    roles: ["admin", "super_admin"],
+  },
+  {
+    path: "/house-savings",
+    name: "House Savings",
+    icon: "tim-icons icon-bank",
+    component: HouseSavings,
+    layout: "/admin",
+  },
+  {
     path: "/emi-forecast",
     name: "EMI Forecast",
     icon: "tim-icons icon-chart-bar-32",
     component: EMIForecast,
     layout: "/admin",
+  },
+  {
+    path: "/roles-management",
+    name: "Roles Management",
+    icon: "tim-icons icon-lock-circle",
+    component: RolesManagement,
+    layout: "/admin",
+    roles: ["admin", "super_admin"],
   },
   // Hidden routes (not shown in sidebar)
   {

@@ -34,6 +34,8 @@ function UserProfile() {
     email: "",
     currency: "INR",
     monthlyIncome: 0,
+    role: "user",
+    houseSavingsGoal: 0,
   });
   const navigate = useNavigate();
 
@@ -54,6 +56,8 @@ function UserProfile() {
           email: userData.email || "",
           currency: userData.currency || "INR",
           monthlyIncome: userData.monthlyIncome || 0,
+          role: userData.role || "user",
+          houseSavingsGoal: userData.houseSavingsGoal || 0,
         });
       }
     } catch (error) {
@@ -152,12 +156,14 @@ function UserProfile() {
       );
     }
 
+    const inputStyle = { background: "#1e1e2d", color: "#fff", border: "1px solid rgba(255,255,255,0.15)", width: "100%" };
+    const labelStyle = { display: "block", marginBottom: "0.5rem", fontWeight: 500 };
     return (
       <Form onSubmit={handleSubmit}>
         <Row>
           <Col md="6">
-            <FormGroup>
-              <label>Full Name *</label>
+            <FormGroup className="mb-4">
+              <label style={{ ...labelStyle, color: "#34D399" }}>Full Name *</label>
               <Input
                 name="name"
                 value={formData.name}
@@ -165,12 +171,13 @@ function UserProfile() {
                 placeholder="Enter your full name"
                 type="text"
                 required
+                style={{ ...inputStyle, borderColor: "rgba(52, 211, 153, 0.4)" }}
               />
             </FormGroup>
           </Col>
           <Col md="6">
-            <FormGroup>
-              <label>Email *</label>
+            <FormGroup className="mb-4">
+              <label style={{ ...labelStyle, color: "#60A5FA" }}>Email *</label>
               <Input
                 name="email"
                 value={formData.email}
@@ -178,19 +185,21 @@ function UserProfile() {
                 placeholder="Enter your email"
                 type="email"
                 required
+                style={{ ...inputStyle, borderColor: "rgba(96, 165, 250, 0.4)" }}
               />
             </FormGroup>
           </Col>
         </Row>
         <Row>
           <Col md="6">
-            <FormGroup>
-              <label>Currency</label>
+            <FormGroup className="mb-4">
+              <label style={{ ...labelStyle, color: "#A78BFA" }}>Currency</label>
               <Input
                 name="currency"
                 value={formData.currency}
                 onChange={handleChange}
                 type="select"
+                style={{ ...inputStyle, borderColor: "rgba(167, 139, 250, 0.4)" }}
               >
                 <option value="INR">INR (₹) - Indian Rupee</option>
                 <option value="USD">USD ($) - US Dollar</option>
@@ -203,8 +212,8 @@ function UserProfile() {
             </FormGroup>
           </Col>
           <Col md="6">
-            <FormGroup>
-              <label>Monthly Income</label>
+            <FormGroup className="mb-4">
+              <label style={{ ...labelStyle, color: "#FBBF24" }}>Monthly Income</label>
               <Input
                 name="monthlyIncome"
                 value={formData.monthlyIncome}
@@ -213,20 +222,67 @@ function UserProfile() {
                 type="number"
                 step="0.01"
                 min="0"
+                style={{ ...inputStyle, borderColor: "rgba(251, 191, 36, 0.4)" }}
               />
             </FormGroup>
           </Col>
         </Row>
         <Row>
-          <Col md="12" className="d-flex justify-content-end gap-2">
+          <Col md="6">
+            <FormGroup className="mb-4">
+              <label style={{ ...labelStyle, color: "#34D399" }}>House Savings Goal (₹)</label>
+              <Input
+                name="houseSavingsGoal"
+                value={formData.houseSavingsGoal}
+                onChange={handleChange}
+                placeholder="Target amount for house savings"
+                type="number"
+                step="0.01"
+                min="0"
+                style={{ ...inputStyle, borderColor: "rgba(52, 211, 153, 0.4)" }}
+              />
+            </FormGroup>
+          </Col>
+          <Col md="6">
+            <FormGroup className="mb-4">
+              <label style={{ ...labelStyle, color: "#F472B6" }}>Role</label>
+              <Input
+                name="role"
+                value={formData.role}
+                onChange={handleChange}
+                type="select"
+                disabled={user?.role !== "admin" && user?.role !== "super_admin"}
+                style={{ ...inputStyle, borderColor: "rgba(244, 114, 182, 0.4)" }}
+              >
+                <option value="user">User</option>
+                <option value="admin">Admin</option>
+                <option value="super_admin">Super Admin</option>
+              </Input>
+              {user?.role !== "admin" && user?.role !== "super_admin" && (
+                <small style={{ color: "#9CA3AF", display: "block", marginTop: "0.25rem" }}>Only admins can change role</small>
+              )}
+            </FormGroup>
+          </Col>
+        </Row>
+        <Row>
+          <Col md="12" className="d-flex justify-content-end align-items-center gap-2 mt-2">
             <Button
               color="secondary"
               onClick={() => fetchUserProfile()}
               disabled={saving}
+              style={{ border: "1px solid rgba(96, 165, 250, 0.5)", color: "#60A5FA" }}
             >
               Refresh
             </Button>
-            <Button color="primary" type="submit" disabled={saving}>
+            <Button
+              type="submit"
+              disabled={saving}
+              style={{
+                background: "linear-gradient(135deg, #34D399 0%, #10B981 100%)",
+                border: "none",
+                color: "#fff",
+              }}
+            >
               {saving ? (
                 <>
                   <Spinner size="sm" className="me-2" />
@@ -273,17 +329,17 @@ function UserProfile() {
           <Col md="8">
             <Card
               style={{
-                background: "linear-gradient(135deg, #1E1E1E 0%, #2d2b42 100%)",
-                border: "1px solid rgba(255, 152, 0, 0.3)",
+                background: "linear-gradient(135deg, #1E1E1E 0%, #2d2b42 50%, #1e293b 100%)",
+                border: "1px solid rgba(251, 191, 36, 0.4)",
                 borderRadius: "15px",
-                boxShadow: "0 8px 32px rgba(255, 152, 0, 0.18)",
+                boxShadow: "0 8px 32px rgba(251, 191, 36, 0.15)",
               }}
             >
               <CardHeader
                 style={{
                   background:
-                    "linear-gradient(135deg, rgba(255, 152, 0, 0.2) 0%, rgba(255, 193, 7, 0.15) 100%)",
-                  borderBottom: "1px solid rgba(255, 152, 0, 0.3)",
+                    "linear-gradient(135deg, rgba(251, 191, 36, 0.25) 0%, rgba(245, 158, 11, 0.2) 50%, rgba(34, 211, 153, 0.15) 100%)",
+                  borderBottom: "1px solid rgba(251, 191, 36, 0.4)",
                   borderRadius: "15px 15px 0 0",
                   padding: "0.75rem 1rem",
                 }}
@@ -297,10 +353,10 @@ function UserProfile() {
                     fontSize: "1.25rem",
                   }}
                 >
-                  <i className="tim-icons icon-single-02 mr-2" style={{ color: "#FFD166" }}></i>
+                  <i className="tim-icons icon-single-02 mr-2" style={{ color: "#FBBF24" }}></i>
                   Profile Settings
                 </h5>
-                <p className="mb-0" style={{ fontSize: "0.85rem", color: "#FFD166" }}>
+                <p className="mb-0" style={{ fontSize: "0.85rem", color: "#34D399" }}>
                   Update your personal details and preferences
                 </p>
               </CardHeader>
@@ -338,10 +394,10 @@ function UserProfile() {
           <Col md="4">
             <Card
               style={{
-                background: "linear-gradient(135deg, rgba(15, 23, 42, 0.9) 0%, rgba(30, 41, 59, 0.85) 100%)",
-                border: "1px solid rgba(127, 183, 255, 0.25)",
+                background: "linear-gradient(135deg, #1e1e2d 0%, #2d2b42 50%, #1e293b 100%)",
+                border: "1px solid rgba(96, 165, 250, 0.3)",
                 borderRadius: "15px",
-                boxShadow: "0 8px 28px rgba(15, 23, 42, 0.45)",
+                boxShadow: "0 8px 32px rgba(96, 165, 250, 0.15)",
               }}
             >
               <CardBody style={{ padding: "1.5rem" }}>
@@ -359,87 +415,93 @@ function UserProfile() {
                       width: 80,
                       height: 80,
                       borderRadius: "50%",
-                      background: "rgba(127, 183, 255, 0.2)",
-                      border: "2px solid rgba(127, 183, 255, 0.45)",
+                      background: "linear-gradient(135deg, rgba(96, 165, 250, 0.4) 0%, rgba(167, 139, 250, 0.4) 100%)",
+                      border: "3px solid rgba(96, 165, 250, 0.6)",
                       display: "flex",
                       justifyContent: "center",
                       alignItems: "center",
+                      boxShadow: "0 0 24px rgba(96, 165, 250, 0.4), 0 0 48px rgba(167, 139, 250, 0.2)",
                     }}
                   >
                     <img
                       alt="User Avatar"
-                      style={{ width: 70, height: 70, borderRadius: "50%" }}
+                      style={{ width: 70, height: 70, borderRadius: "50%", objectFit: "cover" }}
                       src={require("assets/img/default-avatar.png")}
                     />
                   </div>
                   <div>
                     <h5 style={{ color: "#FFFFFF", marginBottom: "6px", fontWeight: 600 }}>{user.name}</h5>
-                    <p style={{ color: "#7FB7FF", fontSize: "0.8rem", margin: 0 }}>EMI Tracker Member</p>
+                    <p style={{ color: "#60A5FA", fontSize: "0.8rem", margin: 0 }}>EMI Tracker Member</p>
                   </div>
                 </div>
                 <div
                   style={{
                     marginTop: "20px",
                     display: "grid",
-                    gap: "10px",
+                    gap: "12px",
                     fontSize: "0.8rem",
-                    color: "#E2E8F0",
                   }}
                 >
-                  <div>
-                    <strong style={{ color: "#7FB7FF" }}>Email:</strong>
-                    <div>{user.email}</div>
+                  <div style={{ padding: "8px 12px", background: "rgba(96, 165, 250, 0.1)", borderRadius: "8px", borderLeft: "3px solid #60A5FA" }}>
+                    <strong style={{ color: "#60A5FA" }}>Email</strong>
+                    <div style={{ color: "#E2E8F0", marginTop: "4px" }}>{user.email}</div>
                   </div>
-                  <div>
-                    <strong style={{ color: "#7FB7FF" }}>Currency:</strong>
-                    <div>{user.currency}</div>
+                  <div style={{ padding: "8px 12px", background: "rgba(167, 139, 250, 0.1)", borderRadius: "8px", borderLeft: "3px solid #A78BFA" }}>
+                    <strong style={{ color: "#A78BFA" }}>Currency</strong>
+                    <div style={{ color: "#E2E8F0", marginTop: "4px" }}>{user.currency}</div>
                   </div>
-                  <div>
-                    <strong style={{ color: "#7FB7FF" }}>Monthly Income:</strong>
-                    <div>
-                      {user.currency} {user.monthlyIncome?.toLocaleString() || 0}
-                    </div>
+                  <div style={{ padding: "8px 12px", background: "rgba(251, 191, 36, 0.1)", borderRadius: "8px", borderLeft: "3px solid #FBBF24" }}>
+                    <strong style={{ color: "#FBBF24" }}>Monthly Income</strong>
+                    <div style={{ color: "#E2E8F0", marginTop: "4px" }}>{user.currency} {user.monthlyIncome?.toLocaleString() || 0}</div>
                   </div>
-                  <div>
-                    <strong style={{ color: "#7FB7FF" }}>Member Since:</strong>
-                    <div>{new Date(user.createdAt).toLocaleDateString()}</div>
+                  <div style={{ padding: "8px 12px", background: "rgba(52, 211, 153, 0.1)", borderRadius: "8px", borderLeft: "3px solid #34D399" }}>
+                    <strong style={{ color: "#34D399" }}>House Savings Goal</strong>
+                    <div style={{ color: "#E2E8F0", marginTop: "4px" }}>₹{(user.houseSavingsGoal || 0).toLocaleString()}</div>
+                  </div>
+                  <div style={{ padding: "8px 12px", background: "rgba(244, 114, 182, 0.1)", borderRadius: "8px", borderLeft: "3px solid #F472B6" }}>
+                    <strong style={{ color: "#F472B6" }}>Role</strong>
+                    <div style={{ color: "#E2E8F0", marginTop: "4px" }}>{user.role === "super_admin" ? "Super Admin" : user.role === "admin" ? "Admin" : "User"}</div>
+                  </div>
+                  <div style={{ padding: "8px 12px", background: "rgba(34, 211, 255, 0.1)", borderRadius: "8px", borderLeft: "3px solid #22D3EE" }}>
+                    <strong style={{ color: "#22D3EE" }}>Member Since</strong>
+                    <div style={{ color: "#E2E8F0", marginTop: "4px" }}>{new Date(user.createdAt).toLocaleDateString()}</div>
                   </div>
                 </div>
               </CardBody>
               <CardFooter
                 style={{
-                  borderTop: "1px solid rgba(127, 183, 255, 0.25)",
-                  background: "rgba(15, 23, 42, 0.75)",
+                  borderTop: "1px solid rgba(96, 165, 250, 0.2)",
+                  background: "rgba(30, 30, 45, 0.8)",
                   borderRadius: "0 0 15px 15px",
                 }}
               >
                 <div style={{ display: "flex", justifyContent: "center", gap: "10px" }}>
                   <Button
                     className="btn-icon btn-round"
-                    color="info"
                     style={{
-                      background: "linear-gradient(135deg, rgba(0, 191, 255, 0.8) 0%, rgba(30, 144, 255, 0.7) 100%)",
+                      background: "linear-gradient(135deg, #60A5FA 0%, #3B82F6 100%)",
                       border: "none",
+                      boxShadow: "0 4px 12px rgba(96, 165, 250, 0.4)",
                     }}
                   >
                     <i className="tim-icons icon-settings" />
                   </Button>
                   <Button
                     className="btn-icon btn-round"
-                    color="success"
                     style={{
-                      background: "linear-gradient(135deg, rgba(102, 187, 106, 0.8) 0%, rgba(76, 175, 80, 0.7) 100%)",
+                      background: "linear-gradient(135deg, #34D399 0%, #10B981 100%)",
                       border: "none",
+                      boxShadow: "0 4px 12px rgba(52, 211, 153, 0.4)",
                     }}
                   >
                     <i className="tim-icons icon-bell-55" />
                   </Button>
                   <Button
                     className="btn-icon btn-round"
-                    color="warning"
                     style={{
-                      background: "linear-gradient(135deg, rgba(255, 152, 0, 0.85) 0%, rgba(255, 193, 7, 0.75) 100%)",
+                      background: "linear-gradient(135deg, #FBBF24 0%, #F59E0B 100%)",
                       border: "none",
+                      boxShadow: "0 4px 12px rgba(251, 191, 36, 0.4)",
                     }}
                   >
                     <i className="tim-icons icon-coins" />

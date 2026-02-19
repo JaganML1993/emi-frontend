@@ -15,7 +15,7 @@
 * The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
 
 */
-import React, { Suspense } from "react";
+import React, { Suspense, useState, useEffect } from "react";
 import { Route, Routes, Navigate, useLocation } from "react-router-dom";
 // javascript plugin used to create scrollbars on windows
 import PerfectScrollbar from "perfect-scrollbar";
@@ -28,6 +28,7 @@ import { Spinner } from "reactstrap";
 // import FixedPlugin from "components/FixedPlugin/FixedPlugin.js";
 
 import routes from "routes.js";
+import api from "config/axios";
 
 import logo from "assets/img/react-logo.png";
 import { BackgroundColorContext } from "contexts/BackgroundColorContext";
@@ -36,10 +37,37 @@ var ps;
 
 function Admin(props) {
   const location = useLocation();
+  const [allowedPaths, setAllowedPaths] = useState(null);
   const mainPanelRef = React.useRef(null);
   const [sidebarOpened, setsidebarOpened] = React.useState(
     document.documentElement.className.indexOf("nav-open") !== -1
   );
+  // Fetch role-based menu permissions
+  useEffect(() => {
+    const fetchPermissions = async () => {
+      try {
+        const res = await api.get("/api/roles/my-permissions");
+        if (res.data.success && res.data.paths) {
+          setAllowedPaths(res.data.paths);
+        } else {
+          setAllowedPaths([]);
+        }
+      } catch {
+        const user = JSON.parse(localStorage.getItem("user") || "{}");
+        setAllowedPaths((user.role === "admin" || user.role === "super_admin") ? ["/dashboard", "/payments", "/house-savings", "/users", "/user-profile", "/emi-forecast", "/roles-management"] : ["/dashboard", "/payments", "/house-savings", "/user-profile", "/emi-forecast"]);
+      }
+    };
+    fetchPermissions();
+  }, []);
+
+  const filteredRoutes = React.useMemo(() => {
+    if (allowedPaths === null) return routes;
+    return routes.filter((r) => {
+      if (r.hidden) return true;
+      return allowedPaths.includes(r.path);
+    });
+  }, [allowedPaths]);
+
   React.useEffect(() => {
     if (navigator.platform.indexOf("Win") > -1) {
       document.documentElement.className += " perfect-scrollbar-on";
@@ -114,7 +142,7 @@ function Admin(props) {
         <React.Fragment>
           <div className="wrapper">
             <Sidebar
-              routes={routes}
+              routes={filteredRoutes}
               logo={{
                 outterLink: "#",
                 text: <span>J❤️V</span>,
