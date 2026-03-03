@@ -2,7 +2,21 @@ import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { Row, Col, Card, CardHeader, CardBody, CardTitle, Button, Badge } from "reactstrap";
 import { format, addMonths, endOfMonth } from "date-fns";
+import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  LineElement,
+  PointElement,
+  Filler,
+  Title,
+  Tooltip,
+  Legend,
+} from "chart.js";
+import { Line } from "react-chartjs-2";
 import api from "../config/axios";
+
+ChartJS.register(CategoryScale, LinearScale, LineElement, PointElement, Filler, Title, Tooltip, Legend);
 
 function Dashboard() {
   const navigate = useNavigate();
@@ -280,37 +294,32 @@ function Dashboard() {
   const now = useMemo(() => new Date(), []);
 
   const forecastSeries = useMemo(() => {
-    // Build month buckets from current month forward for `months` count
     const buckets = [];
     for (let i = 0; i < months; i++) {
       const monthDate = addMonths(now, i);
       buckets.push({
         key: format(monthDate, "yyyy-MM"),
-        label: format(monthDate, "MMM yyyy"),
+        label: format(monthDate, "MMM yy"),
         start: new Date(monthDate.getFullYear(), monthDate.getMonth(), 1),
         end: endOfMonth(monthDate),
+        savings: 0,
+        expenses: 0,
         total: 0,
       });
     }
 
-    // Sum EMI amounts into month buckets
     payments.forEach((p) => {
       const amount = Number(p.amount || 0);
       if (!amount || p.status === "completed") return;
-
-      const emiType = p.emiType; // 'recurring' or 'ending'
+      const isEnding = p.emiType === "ending";
       const endDate = p.endDate ? new Date(p.endDate) : null;
+      const isSavings = p.category === "savings";
 
       buckets.forEach((bucket) => {
-        if (emiType === "recurring") {
-          bucket.total += amount;
-        } else if (emiType === "ending") {
-          // include only if this bucket month is <= endDate month
-          if (endDate && bucket.start <= endDate) {
-            bucket.total += amount;
-          }
-        } else {
-          // unknown type, include conservatively
+        const applies = !isEnding || (endDate && bucket.start <= endDate);
+        if (applies) {
+          if (isSavings) bucket.savings += amount;
+          else bucket.expenses += amount;
           bucket.total += amount;
         }
       });
@@ -323,55 +332,147 @@ function Dashboard() {
     setMonths((prev) => Math.min(12, Math.max(1, prev + delta)));
   };
 
-  const maxForecastTotal = useMemo(() => {
-    if (!forecastSeries.length) return 0;
-    return Math.max(...forecastSeries.map((bucket) => bucket.total));
+  const forecastChartData = useMemo(() => {
+    const mkGradient = (ctx, color1, color2) => {
+      const gradient = ctx.createLinearGradient(0, 0, 0, 320);
+      gradient.addColorStop(0, color1);
+      gradient.addColorStop(1, color2);
+      return gradient;
+    };
+
+    return {
+      labels: forecastSeries.map(b => b.label),
+      datasets: [
+        {
+          label: "Total EMI",
+          data: forecastSeries.map(b => b.total),
+          borderColor: "#06B6D4",
+          borderWidth: 2.5,
+          backgroundColor: (ctx) => {
+            const chart = ctx.chart;
+            const { ctx: c, chartArea } = chart;
+            if (!chartArea) return "rgba(6,182,212,0.06)";
+            return mkGradient(c, "rgba(6,182,212,0.28)", "rgba(6,182,212,0.01)");
+          },
+          fill: true,
+          tension: 0.45,
+          pointRadius: 4,
+          pointHoverRadius: 7,
+          pointBackgroundColor: "#06B6D4",
+          pointBorderColor: "#1e1e2d",
+          pointBorderWidth: 2,
+          order: 1,
+        },
+        {
+          label: "Expenses",
+          data: forecastSeries.map(b => b.expenses),
+          borderColor: "#F59E0B",
+          borderWidth: 2,
+          backgroundColor: (ctx) => {
+            const chart = ctx.chart;
+            const { ctx: c, chartArea } = chart;
+            if (!chartArea) return "rgba(245,158,11,0.06)";
+            return mkGradient(c, "rgba(245,158,11,0.28)", "rgba(245,158,11,0.01)");
+          },
+          fill: true,
+          tension: 0.45,
+          pointRadius: 3,
+          pointHoverRadius: 6,
+          pointBackgroundColor: "#F59E0B",
+          pointBorderColor: "#1e1e2d",
+          pointBorderWidth: 2,
+          order: 2,
+        },
+        {
+          label: "Savings",
+          data: forecastSeries.map(b => b.savings),
+          borderColor: "#10B981",
+          borderWidth: 2,
+          backgroundColor: (ctx) => {
+            const chart = ctx.chart;
+            const { ctx: c, chartArea } = chart;
+            if (!chartArea) return "rgba(16,185,129,0.06)";
+            return mkGradient(c, "rgba(16,185,129,0.28)", "rgba(16,185,129,0.01)");
+          },
+          fill: true,
+          tension: 0.45,
+          pointRadius: 3,
+          pointHoverRadius: 6,
+          pointBackgroundColor: "#10B981",
+          pointBorderColor: "#1e1e2d",
+          pointBorderWidth: 2,
+          order: 3,
+        },
+      ],
+    };
   }, [forecastSeries]);
 
-  const MonthBar = ({ label, value }) => {
-    const effectiveMax = Math.max(1, maxForecastTotal);
-    const heightPct = Math.max(4, Math.round((value / effectiveMax) * 100));
-    return (
-      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8 }}>
-        <div
-          style={{
-            height: 140,
-            width: 24,
-            display: "flex",
-            alignItems: "flex-end",
-            background: "rgba(255,255,255,0.05)",
-            border: "1px solid rgba(255,255,255,0.1)",
-            borderRadius: 10,
-            overflow: "hidden",
-          }}
-          title={`₹${value.toLocaleString("en-IN", { maximumFractionDigits: 2 })}`}
-        >
-          <div
-            style={{
-              width: "100%",
-              height: `${heightPct}%`,
-              background:
-                "linear-gradient(180deg, rgba(255, 152, 0, 0.9) 0%, rgba(255, 193, 7, 0.85) 60%, rgba(255, 209, 102, 0.8) 100%)",
-              boxShadow: "0 4px 12px rgba(255, 152, 0, 0.35)",
-              transition: "height 0.3s ease",
-            }}
-          />
-        </div>
-        <div style={{ color: "#FFFFFF", fontSize: "0.75rem", textAlign: "center" }}>{label}</div>
-        <div style={{ color: "#FFD166", fontSize: "0.75rem", fontWeight: 600 }}>
-          ₹{value.toLocaleString("en-IN", { maximumFractionDigits: 2 })}
-        </div>
-      </div>
-    );
-  };
+  const forecastChartOptions = useMemo(() => ({
+    responsive: true,
+    maintainAspectRatio: false,
+    interaction: { mode: "index", intersect: false },
+    animation: { duration: 600, easing: "easeInOutQuart" },
+    plugins: {
+      legend: {
+        display: true,
+        position: "top",
+        align: "end",
+        labels: {
+          color: "#ccc",
+          font: { size: 11 },
+          boxWidth: 12,
+          boxHeight: 3,
+          padding: 18,
+          usePointStyle: true,
+          pointStyle: "line",
+        },
+      },
+      tooltip: {
+        backgroundColor: "rgba(15,15,30,0.96)",
+        titleColor: "#06B6D4",
+        titleFont: { size: 13, weight: "bold" },
+        bodyColor: "#ddd",
+        bodyFont: { size: 12 },
+        borderColor: "rgba(6,182,212,0.4)",
+        borderWidth: 1,
+        padding: 14,
+        displayColors: true,
+        boxWidth: 10,
+        boxHeight: 10,
+        callbacks: {
+          label: (item) =>
+            `  ${item.dataset.label}:  ₹${Number(item.raw).toLocaleString("en-IN", { maximumFractionDigits: 0 })}`,
+        },
+      },
+    },
+    scales: {
+      x: {
+        grid: { color: "rgba(255,255,255,0.05)", drawBorder: false },
+        ticks: { color: "#888", font: { size: 11 } },
+        border: { color: "rgba(255,255,255,0.1)" },
+      },
+      y: {
+        beginAtZero: true,
+        grid: { color: "rgba(255,255,255,0.07)", drawBorder: false },
+        ticks: {
+          color: "#888",
+          font: { size: 11 },
+          maxTicksLimit: 6,
+          callback: (v) => {
+            if (v >= 100000) return "₹" + (v / 100000).toFixed(1) + "L";
+            if (v >= 1000) return "₹" + (v / 1000).toFixed(0) + "K";
+            return "₹" + v;
+          },
+        },
+        border: { color: "rgba(255,255,255,0.1)", dash: [4, 4] },
+      },
+    },
+  }), []);
 
-  // Chart data for EMI Forecast line chart
   const paymentMap = useMemo(() => {
     const map = new Map();
     payments.forEach((payment) => {
-      if (payment?._id) {
-        map.set(payment._id, payment);
-      }
+      if (payment?._id) map.set(payment._id, payment);
     });
     return map;
   }, [payments]);
@@ -428,6 +529,25 @@ function Dashboard() {
                 <div style={{ color: "#FFFFFF", fontSize: "2rem", fontWeight: 600 }}>
                   ₹{paidEMIAmount.toLocaleString()}
                 </div>
+                {totalEMIAmount > 0 && (
+                  <div style={{ marginTop: 10 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                      <span style={{ color: '#9a9a9a', fontSize: '0.7rem' }}>Monthly Progress</span>
+                      <span style={{ color: '#66BB6A', fontSize: '0.7rem', fontWeight: 600 }}>
+                        {Math.round((paidEMIAmount / totalEMIAmount) * 100)}%
+                      </span>
+                    </div>
+                    <div style={{ height: 4, borderRadius: 4, background: 'rgba(255,255,255,0.1)', overflow: 'hidden' }}>
+                      <div style={{
+                        height: '100%',
+                        width: `${Math.min(100, Math.round((paidEMIAmount / totalEMIAmount) * 100))}%`,
+                        borderRadius: 4,
+                        background: 'linear-gradient(90deg, #66BB6A, #A5D6A7)',
+                        transition: 'width 0.6s ease'
+                      }} />
+                    </div>
+                  </div>
+                )}
               </CardBody>
             </Card>
           </Col>
@@ -605,41 +725,28 @@ function Dashboard() {
                     })();
                     
                     // Determine payment status and matching colors
-                    let paymentStatus, statusLabel, statusColor, statusShadow, badgeColor, borderColor, statusIcon, statusIconColor;
-                    
+                    let paymentStatus, statusColor, statusShadow, borderColor, circleColor;
+
                     if (isPaid) {
                       paymentStatus = 'paid';
-                      statusLabel = 'Paid';
-                      statusColor = 'rgba(102, 187, 106, 0.4)'; // green for paid
+                      statusColor = 'rgba(102, 187, 106, 0.4)';
                       statusShadow = 'rgba(102, 187, 106, 0.25)';
-                      badgeColor = 'rgba(102, 187, 106, 0.9)';
                       borderColor = 'rgba(102, 187, 106, 0.5)';
-                      statusIcon = 'tim-icons icon-check-2';
-                      statusIconColor = '#66BB6A';
+                      circleColor = '#66BB6A';
                     } else if (paymentDate < today) {
                       paymentStatus = 'overdue';
-                      statusLabel = 'Overdue';
-                      statusColor = 'rgba(229, 57, 53, 0.4)'; // red for overdue
+                      statusColor = 'rgba(229, 57, 53, 0.4)';
                       statusShadow = 'rgba(229, 57, 53, 0.25)';
-                      badgeColor = 'rgba(229, 57, 53, 0.9)';
                       borderColor = 'rgba(229, 57, 53, 0.5)';
-                      statusIcon = 'tim-icons icon-alert-circle-exc';
-                      statusIconColor = '#FF6E6E';
+                      circleColor = '#FF6E6E';
                     } else {
                       paymentStatus = 'upcoming';
-                      statusLabel = 'Upcoming';
-                      statusColor = 'rgba(255, 152, 0, 0.4)'; // orange for upcoming
+                      statusColor = 'rgba(255, 152, 0, 0.4)';
                       statusShadow = 'rgba(255, 152, 0, 0.25)';
-                      badgeColor = 'rgba(255, 152, 0, 0.9)';
                       borderColor = 'rgba(255, 152, 0, 0.5)';
-                      statusIcon = 'tim-icons icon-time-alarm';
-                      statusIconColor = '#FFD166';
+                      circleColor = '#FFD166';
                     }
-                    const dueTextColor = isPaid
-                      ? '#66BB6A'
-                      : (paymentDate < today)
-                        ? '#FF6E6E'
-                        : '#FFD166';
+                    const dueTextColor = isPaid ? '#66BB6A' : paymentDate < today ? '#FF6E6E' : '#FFD166';
                     
                     return (
                       <div
@@ -663,66 +770,50 @@ function Dashboard() {
                       >
                         <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 4, background: borderColor, opacity: 0.9 }} />
                         <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: 1 }}>
-                          {/* Left icon container - shows EMI day */}
-                          <div
-                            style={{
-                              minWidth: 90,
-                              borderRadius: 8,
-                              background: 'rgba(255,255,255,0.18)',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'space-between',
-                              color: '#FFFFFF',
-                              fontWeight: 500,
-                              fontSize: '0.75rem',
-                              gap: 10,
-                              padding: '6px 10px',
-                              border: '1px solid rgba(255,255,255,0.25)',
-                              textAlign: 'left',
-                              lineHeight: 1.15
-                            }}
-                          >
-                            <i
-                              className={statusIcon}
-                              style={{
-                                fontSize: '1.1rem',
-                                color: statusIconColor,
-                                marginBottom: 2,
-                                animation: paymentStatus === 'upcoming' ? 'pulse 1.8s ease-in-out infinite' : 'none'
-                              }}
-                            />
-                            <span style={{ fontWeight: 700, fontSize: '1rem', color: '#FFD166' }}>{pendingLabel}</span>
-                          </div>
-                          {paymentStatus === 'upcoming' && (
-                            <style>
-                              {`
-                                @keyframes pulse {
-                                  0% { transform: scale(1); opacity: 0.85; }
-                                  50% { transform: scale(1.08); opacity: 1; }
-                                  100% { transform: scale(1); opacity: 0.85; }
-                                }
-                              `}
-                            </style>
-                          )}
+                          {/* Pending EMI count circle */}
+                          {(() => {
+                            const catColor = t.payment?.category === 'savings' ? '#66BB6A' : '#FF6B6B';
+                            const catBorder = t.payment?.category === 'savings' ? 'rgba(102,187,106,0.5)' : 'rgba(255,82,82,0.65)';
+                            const catBg = t.payment?.category === 'savings' ? 'rgba(102,187,106,0.15)' : 'rgba(255,82,82,0.10)';
+                            return (
+                              <div
+                                title="Pending EMIs"
+                                style={{
+                                  width: 40,
+                                  height: 40,
+                                  borderRadius: '50%',
+                                  background: catBg,
+                                  border: `2px solid ${catBorder}`,
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  flexShrink: 0,
+                                }}
+                              >
+                                <span style={{ fontWeight: 700, fontSize: '0.85rem', color: catColor, lineHeight: 1 }}>{pendingLabel}</span>
+                              </div>
+                            );
+                          })()}
                           <div style={{ flex: 1 }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
                               <div style={{ color: '#FFFFFF', fontWeight: 500, fontSize: '0.9rem' }}>
                                 {t.payment?.name || 'N/A'}
                               </div>
-                              <span
-                                style={{
+                              {t.payment?.category && (
+                                <span style={{
                                   fontSize: '0.65rem',
-                                  padding: '3px 8px',
-                                  fontWeight: 600,
-                                  borderRadius: '9999px',
-                                  backgroundColor: badgeColor,
-                                  color: '#FFFFFF',
-                                  border: 'none',
-                                  display: 'inline-block'
-                                }}
-                              >
-                                {statusLabel}
-                              </span>
+                                  fontWeight: 700,
+                                  padding: '1px 6px',
+                                  borderRadius: 10,
+                                  textTransform: 'uppercase',
+                                  letterSpacing: '0.04em',
+                                  background: t.payment.category === 'savings' ? 'rgba(102,187,106,0.18)' : 'rgba(255,82,82,0.10)',
+                                  color: t.payment.category === 'savings' ? '#66BB6A' : '#FF6B6B',
+                                  border: `1px solid ${t.payment.category === 'savings' ? 'rgba(102,187,106,0.4)' : 'rgba(255,82,82,0.6)'}`,
+                                }}>
+                                  {t.payment.category}
+                                </span>
+                              )}
                             </div>
                             <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
                               <span style={{ color: '#FFFFFF', fontWeight: 400, fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -730,16 +821,8 @@ function Dashboard() {
                                 ₹{Number(t.payment?.amount || t.amount || 0).toLocaleString('en-IN', { maximumFractionDigits: 2 })}
                               </span>
                               {t.payment && (
-                                <span style={{ 
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  gap: '6px',
-                                  color: dueTextColor, 
-                                  fontSize: '0.8rem',
-                                  fontWeight: 500
-                                }}>
-                                  <i className="tim-icons icon-time-alarm" style={{ fontSize: '0.85rem', color: dueTextColor }} />
-                                  Due {dueLabel}
+                                <span style={{ color: dueTextColor, fontSize: '0.8rem', fontWeight: 500 }}>
+                                  {isPaid ? `Paid ${dueLabel}` : paymentDate < today ? `Overdue · ${dueLabel}` : `Due ${dueLabel}`}
                                 </span>
                               )}
                             </div>
@@ -939,33 +1022,33 @@ function Dashboard() {
                   </Col>
                 </Row>
               </CardHeader>
-              <CardBody style={{ padding: "1rem", background: "#1E1E1E" }}>
-                {forecastSeries.length > 0 ? (
-                  <div style={{ overflowX: "auto", padding: "8px 4px" }}>
-                    <div
-                      style={{
-                        display: "grid",
-                        gridAutoFlow: "column",
-                        gridAutoColumns: "minmax(70px, 1fr)",
-                        gap: 16,
-                        minHeight: 200,
-                      }}
-                    >
-                      {forecastSeries.map((bucket) => (
-                        <MonthBar
-                          key={bucket.key}
-                          label={bucket.label}
-                          value={Number(bucket.total || 0)}
-                        />
+              <CardBody style={{ padding: "1rem 1.25rem", background: "#1E1E1E" }}>
+                {forecastSeries.length > 0 && forecastSeries.some(b => b.total > 0) ? (
+                  <>
+                    {/* Summary strip */}
+                    <div style={{ display: "flex", gap: "24px", marginBottom: "16px", flexWrap: "wrap" }}>
+                      {[
+                        { label: "Avg Total / Month", color: "#06B6D4", total: forecastSeries.reduce((s, b) => s + b.total, 0) / forecastSeries.length },
+                        { label: "Avg Expenses", color: "#F59E0B", total: forecastSeries.reduce((s, b) => s + b.expenses, 0) / forecastSeries.length },
+                        { label: "Avg Savings", color: "#10B981", total: forecastSeries.reduce((s, b) => s + b.savings, 0) / forecastSeries.length },
+                      ].map(({ label, color, total }) => (
+                        <div key={label} style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                          <div style={{ width: "20px", height: "3px", borderRadius: "2px", background: color, flexShrink: 0 }} />
+                          <span style={{ color: "#888", fontSize: "0.78rem" }}>{label}:</span>
+                          <span style={{ color: "#fff", fontSize: "0.85rem", fontWeight: 600 }}>
+                            ₹{total.toLocaleString("en-IN", { maximumFractionDigits: 0 })}
+                          </span>
+                        </div>
                       ))}
                     </div>
-                  </div>
+                    <div style={{ height: "280px", position: "relative" }}>
+                      <Line data={forecastChartData} options={forecastChartOptions} />
+                    </div>
+                  </>
                 ) : (
                   <div className="text-center py-4" style={{ color: "#CCCCCC" }}>
-                    <i className="tim-icons icon-chart-line-32" style={{ fontSize: "3rem", opacity: 0.5, marginBottom: "1rem" }}></i>
-                    <div style={{ fontSize: "1rem" }}>
-                      No payment data available for forecast
-                    </div>
+                    <i className="tim-icons icon-chart-bar-32" style={{ fontSize: "3rem", opacity: 0.4, marginBottom: "1rem" }}></i>
+                    <div style={{ fontSize: "1rem" }}>No active payments to forecast</div>
                   </div>
                 )}
               </CardBody>

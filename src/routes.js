@@ -21,10 +21,10 @@ const Payments = lazy(() => import("views/Payments.js"));
 const AddPayment = lazy(() => import("views/AddPayment.js"));
 const EditPayment = lazy(() => import("views/EditPayment.js"));
 const UserProfile = lazy(() => import("views/UserProfile.js"));
-const EMIForecast = lazy(() => import("views/EMIForecast.js"));
 const RolesManagement = lazy(() => import("views/RolesManagement.js"));
 const Users = lazy(() => import("views/Users.js"));
 const HouseSavings = lazy(() => import("views/HouseSavings.js"));
+const Budget = lazy(() => import("views/Budget.js"));
 
 var routes = [
   {
@@ -65,10 +65,10 @@ var routes = [
     layout: "/admin",
   },
   {
-    path: "/emi-forecast",
-    name: "EMI Forecast",
-    icon: "tim-icons icon-chart-bar-32",
-    component: EMIForecast,
+    path: "/budget",
+    name: "Budget",
+    icon: "tim-icons icon-coins",
+    component: Budget,
     layout: "/admin",
   },
   {

@@ -36,31 +36,12 @@ var ps;
 function Sidebar(props) {
   const location = useLocation();
   const sidebarRef = React.useRef(null);
-  // verifies if routeName is the one active (in browser input)
-  const activeRoute = (routeName) => {
-    return location.pathname === routeName ? "active" : "";
-  };
-  
-  // Check if current path matches the route
-  const isCurrentRoute = (path) => {
-    const currentPath = location.pathname;
-    const routePath = props.layout + path;
-    
-    // Check exact match first
-    if (currentPath === routePath) {
-      return true;
-    }
-    
-    // Check if current path starts with the route path (for nested routes)
-    if (currentPath.startsWith(routePath + '/')) {
-      return true;
-    }
-    
-    // Special case for dashboard (root path)
-    if (path === '/dashboard' && (currentPath === '/admin' || currentPath === '/admin/')) {
-      return true;
-    }
-    
+  // Check if current path matches the route (uses the route's own layout prefix)
+  const isCurrentRoute = (layout, path) => {
+    const fullPath = layout + path;
+    if (location.pathname === fullPath) return true;
+    if (location.pathname.startsWith(fullPath + '/')) return true;
+    if (path === '/dashboard' && (location.pathname === '/admin' || location.pathname === '/admin/')) return true;
     return false;
   };
   React.useEffect(() => {
@@ -152,65 +133,62 @@ function Sidebar(props) {
                 {logoText}
               </div>
             ) : null}
-            <Nav style={{ padding: '0 15px' }}>
+            <Nav style={{ padding: '0 10px' }}>
               {routes
-                .filter(route => !route.hidden) // Filter out hidden routes
+                .filter(route => !route.hidden)
                 .map((prop, key) => {
-                if (prop.redirect) return null;
-                const isActive = isCurrentRoute(prop.path);
-                return (
-                  <li
-                    className={
-                      activeRoute(prop.path) + (prop.pro ? " active-pro" : "")
-                    }
-                    key={key}
-                    style={{
-                      marginBottom: '8px',
-                      borderRadius: '12px',
-                      overflow: 'hidden',
-                      transition: 'all 0.3s ease'
-                    }}
-                  >
-                    <NavLink
-                      to={prop.layout + prop.path}
-                      className="nav-link"
-                      onClick={props.toggleSidebar}
-                      style={{
-                        background: isActive ? 'linear-gradient(135deg, rgba(255, 152, 0, 0.5) 0%, rgba(255, 193, 7, 0.35) 100%)' : 'transparent',
-                        border: isActive ? '2px solid rgba(255, 152, 0, 0.8)' : '1px solid transparent',
-                        borderRadius: '12px',
-                        padding: '12px 15px',
-                        color: isActive ? '#FFD166' : '#ffffff',
-                        fontWeight: isActive ? '700' : '400',
-                        transition: 'all 0.3s ease',
-                        display: 'flex',
-                        alignItems: 'center',
-                        textDecoration: 'none',
-                        boxShadow: isActive ? '0 8px 25px rgba(255, 152, 0, 0.4)' : 'none',
-                        position: 'relative'
-                      }}
-
+                  if (prop.redirect) return null;
+                  const isActive = isCurrentRoute(prop.layout, prop.path);
+                  return (
+                    <li
+                      key={key}
+                      style={{ marginBottom: '4px', listStyle: 'none' }}
                     >
-                      <i className={prop.icon} style={{ 
-                        marginRight: '12px',
-                        fontSize: '1.1rem',
-                        color: isActive ? '#FFD166' : '#ffffff',
-                        opacity: isActive ? '1' : '0.8',
-                        position: 'relative',
-                        zIndex: '2'
-                      }} />
-                      <p style={{ 
-                        margin: '0',
-                        fontSize: '0.9rem',
-                        color: isActive ? '#FFD166' : '#ffffff',
-                        opacity: isActive ? '1' : '0.8',
-                        position: 'relative',
-                        zIndex: '2'
-                      }}>{prop.name}</p>
-                    </NavLink>
-                  </li>
-                );
-              })}
+                      <NavLink
+                        to={prop.layout + prop.path}
+                        onClick={props.toggleSidebar}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '12px',
+                          padding: '10px 12px',
+                          borderRadius: '10px',
+                          textDecoration: 'none',
+                          background: isActive
+                            ? 'linear-gradient(135deg, rgba(255,152,0,0.45) 0%, rgba(255,193,7,0.3) 100%)'
+                            : 'transparent',
+                          border: isActive
+                            ? '1px solid rgba(255,152,0,0.7)'
+                            : '1px solid transparent',
+                          boxShadow: isActive ? '0 4px 16px rgba(255,152,0,0.3)' : 'none',
+                          transition: 'all 0.25s ease',
+                        }}
+                      >
+                        <i
+                          className={prop.icon}
+                          style={{
+                            fontSize: '1rem',
+                            width: '20px',
+                            textAlign: 'center',
+                            flexShrink: 0,
+                            color: isActive ? '#FFD166' : 'rgba(255,255,255,0.75)',
+                          }}
+                        />
+                        <p style={{
+                          margin: 0,
+                          fontSize: '0.88rem',
+                          fontWeight: isActive ? '600' : '400',
+                          color: isActive ? '#FFD166' : 'rgba(255,255,255,0.85)',
+                          whiteSpace: 'nowrap',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                        }}>
+                          {prop.name}
+                        </p>
+                      </NavLink>
+                    </li>
+                  );
+                })}
             </Nav>
           </div>
         </div>
