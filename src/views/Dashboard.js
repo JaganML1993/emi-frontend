@@ -22,10 +22,10 @@ function Dashboard() {
   const navigate = useNavigate();
   const [upcomingTransactions, setUpcomingTransactions] = useState([]);
   const [payments, setPayments] = useState([]);
-  const [houseSavingsTotal, setHouseSavingsTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [showPaidEMIs, setShowPaidEMIs] = useState(false);
   const [months, setMonths] = useState(6);
+  const [totalSavingsPaid, setTotalSavingsPaid] = useState(0);
 
   const fetchUpcomingTransactions = useCallback(async () => {
     try {
@@ -92,27 +92,24 @@ function Dashboard() {
     }
   }, []);
 
-  const fetchHouseSavings = useCallback(async () => {
+  const fetchSavingsTotal = useCallback(async () => {
     try {
-      const response = await api.get("/api/house-savings");
-      const entries = response.data?.data || [];
-      const total = entries.reduce((sum, e) => sum + Number(e.amount || 0), 0);
-      setHouseSavingsTotal(total);
-      return true;
+      const res = await api.get("/api/payments/savings-total");
+      if (res.data.success) setTotalSavingsPaid(res.data.data.total || 0);
     } catch {
-      setHouseSavingsTotal(0);
-      return false;
+      setTotalSavingsPaid(0);
     }
   }, []);
+
 
   useEffect(() => {
     const loadData = async () => {
       setLoading(true);
-      await Promise.all([fetchUpcomingTransactions(), fetchPayments(), fetchHouseSavings()]);
+      await Promise.all([fetchUpcomingTransactions(), fetchPayments(), fetchSavingsTotal()]);
       setLoading(false);
     };
     loadData();
-  }, [fetchUpcomingTransactions, fetchPayments, fetchHouseSavings]);
+  }, [fetchUpcomingTransactions, fetchPayments, fetchSavingsTotal]);
 
 
   const handleMarkAsPaid = async (transactionId, transaction) => {
@@ -261,6 +258,7 @@ function Dashboard() {
       savings: activePayments.filter(p => p.category === 'savings').reduce((sum, p) => sum + Number(p.amount || 0), 0),
       expenses: activePayments.filter(p => p.category !== 'savings').reduce((sum, p) => sum + Number(p.amount || 0), 0),
     };
+
     
     const nextPayment = pendingTransactions
       .filter(t => {
@@ -604,17 +602,18 @@ function Dashboard() {
                 backdropFilter: "blur(10px)",
                 WebkitBackdropFilter: "blur(10px)",
                 boxShadow: "0 4px 15px rgba(102, 187, 106, 0.2)",
-                cursor: "pointer",
               }}
-              onClick={() => navigate("/admin/house-savings")}
             >
               <CardBody style={{ padding: "1.5rem" }}>
                 <div style={{ color: "#66BB6A", fontSize: "0.9rem", fontWeight: 500, marginBottom: "8px" }}>
                   <i className="tim-icons icon-bank mr-1" style={{ color: "#66BB6A" }}></i>
-                  House Savings
+                  Total Savings
                 </div>
                 <div style={{ color: "#FFFFFF", fontSize: "2rem", fontWeight: 600 }}>
-                  ₹{houseSavingsTotal.toLocaleString("en-IN", { maximumFractionDigits: 2 })}
+                  ₹{totalSavingsPaid.toLocaleString("en-IN", { maximumFractionDigits: 0 })}
+                </div>
+                <div style={{ color: "#9a9a9a", fontSize: "0.75rem", marginTop: 4 }}>
+                  All-time paid savings
                 </div>
               </CardBody>
             </Card>

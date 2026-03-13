@@ -25,6 +25,8 @@ const RolesManagement = lazy(() => import("views/RolesManagement.js"));
 const Users = lazy(() => import("views/Users.js"));
 const HouseSavings = lazy(() => import("views/HouseSavings.js"));
 const Budget = lazy(() => import("views/Budget.js"));
+const GoldSavings = lazy(() => import("views/GoldSavings.js"));
+const GoldSavingsForm = lazy(() => import("views/GoldSavingsForm.js"));
 
 var routes = [
   {
@@ -72,12 +74,35 @@ var routes = [
     layout: "/admin",
   },
   {
+    path: "/gold-savings",
+    name: "Gold Savings",
+    icon: "tim-icons icon-trophy",
+    component: GoldSavings,
+    layout: "/admin",
+  },
+  {
     path: "/roles-management",
     name: "Roles Management",
     icon: "tim-icons icon-lock-circle",
     component: RolesManagement,
     layout: "/admin",
     roles: ["admin", "super_admin"],
+  },
+  {
+    path: "/gold-savings/add",
+    name: "Add Gold Savings",
+    icon: "tim-icons icon-simple-add",
+    component: GoldSavingsForm,
+    layout: "/admin",
+    hidden: true,
+  },
+  {
+    path: "/gold-savings/edit/:id",
+    name: "Edit Gold Savings",
+    icon: "tim-icons icon-pencil",
+    component: GoldSavingsForm,
+    layout: "/admin",
+    hidden: true,
   },
   // Hidden routes (not shown in sidebar)
   {
