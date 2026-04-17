@@ -1,0 +1,35 @@
+// Red outlined cancel — must beat Black Dashboard `.btn` rules that use `!important`
+.btn.btn-cancel-outline,
+button.btn-cancel-outline {
+  background: transparent !important;
+  background-image: none !important;
+  border: 1px solid rgba(239, 68, 68, 0.88) !important;
+  color: #f87171 !important;
+  box-shadow: none !important;
+  border-radius: 9px;
+  font-weight: 600;
+}
+
+// Native cancel buttons (no Bootstrap .btn)
+button.btn-cancel-outline {
+  padding: 9px 22px;
+  cursor: pointer;
+  font: inherit;
+}
+
+.btn.btn-cancel-outline:hover:not(:disabled),
+button.btn-cancel-outline:hover:not(:disabled) {
+  background: rgba(239, 68, 68, 0.14) !important;
+  border-color: rgba(252, 165, 165, 0.95) !important;
+  color: #fca5a5 !important;
+}
+
+.btn.btn-cancel-outline:focus,
+button.btn-cancel-outline:focus {
+  box-shadow: 0 0 0 0.2rem rgba(239, 68, 68, 0.25) !important;
+}
+
+.btn.btn-cancel-outline:disabled,
+button.btn-cancel-outline:disabled {
+  opacity: 0.5 !important;
+}

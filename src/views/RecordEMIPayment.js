@@ -147,8 +147,7 @@ function RecordEMIPayment() {
                 {error && <Alert color="danger">{error}</Alert>}
                 {success && <Alert color="success">{success}</Alert>}
 
-                                 {/* EMI Summary Card */}
-                 <Card className="mb-4" style={{ backgroundColor: '#2c3e50', color: 'white' }}>
+                                 <Card className="mb-4" style={{ backgroundColor: '#252527', border: "1px solid rgba(255,255,255,0.08)", color: 'rgba(255,255,255,0.8)' }}>
                   <CardBody>
                                                                   <Row>
                            <Col md="4">
@@ -275,7 +274,7 @@ function RecordEMIPayment() {
                   <Row>
                     <Col md="12" className="d-flex justify-content-end gap-2">
                       <Button
-                        color="secondary"
+                        className="btn-cancel-outline"
                         onClick={handleCancel}
                         disabled={saving}
                         size="lg"

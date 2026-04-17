@@ -18685,14 +18685,7 @@ hr {
 }
 .sidebar .nav li.active > a:not([data-toggle="collapse"]):before,
 .off-canvas-sidebar .nav li.active > a:not([data-toggle="collapse"]):before {
-  content: " ";
-  position: absolute;
-  height: 6px;
-  width: 6px;
-  top: 22px;
-  left: -4px;
-  background: #ffffff;
-  border-radius: 50%;
+  display: none;
 }
 .sidebar .nav li.active > a[data-toggle="collapse"],
 .off-canvas-sidebar .nav li.active > a[data-toggle="collapse"] {
@@ -21802,8 +21795,7 @@ html, body {
 
 .sidebar .nav li.active > a:not([data-toggle="collapse"]):before,
 .off-canvas-sidebar .nav li.active > a:not([data-toggle="collapse"]):before {
-  background: #e14eca !important;
-  box-shadow: 0 0 10px rgba(225, 78, 202, 0.5) !important;
+  display: none !important;
 }
 
 /* Hover effects for non-active items */

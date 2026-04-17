@@ -1,0 +1,45 @@
+// Amber outline primary CTA (Add EMI, etc.) — beats theme `.btn` when combined with `.btn`
+.btn.btn-amber-outline,
+button.btn-amber-outline {
+  background: transparent !important;
+  background-image: none !important;
+  border: 1px solid rgba(255, 160, 46, 0.9) !important;
+  color: #ffb347 !important;
+  box-shadow: none !important;
+  border-radius: 9px;
+  font-weight: 700;
+}
+
+.btn.btn-amber-outline:hover:not(:disabled),
+button.btn-amber-outline:hover:not(:disabled) {
+  background: rgba(255, 160, 46, 0.12) !important;
+  border-color: rgba(255, 194, 102, 0.95) !important;
+  color: #ffd093 !important;
+}
+
+.btn.btn-amber-outline:focus,
+button.btn-amber-outline:focus {
+  box-shadow: 0 0 0 0.2rem rgba(255, 160, 46, 0.22) !important;
+}
+
+.btn.btn-amber-outline:active:not(:disabled),
+button.btn-amber-outline:active:not(:disabled) {
+  transform: none !important;
+  background: rgba(255, 160, 46, 0.18) !important;
+}
+
+.btn.btn-amber-outline:disabled,
+button.btn-amber-outline:disabled {
+  opacity: 0.55 !important;
+  cursor: not-allowed !important;
+}
+
+button.btn-amber-outline {
+  padding: 9px 22px;
+  cursor: pointer;
+  font: inherit;
+}
+
+button.btn-amber-outline:disabled {
+  cursor: not-allowed;
+}

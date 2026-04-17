@@ -7,9 +7,6 @@ import {
   CardTitle,
   Row,
   Col,
-  Button,
-  Badge,
-  Spinner,
 } from "reactstrap";
 import { format } from "date-fns";
 import api from "../config/axios";
@@ -26,7 +23,6 @@ function Payments() {
         headers: { Authorization: `Bearer ${token}` },
       });
       const payments = response.data.data || [];
-      // Sort by EMI day
       const sorted = [...payments].sort((a, b) => {
         const aEmiDay = a.emiDay || 0;
         const bEmiDay = b.emiDay || 0;
@@ -45,13 +41,12 @@ function Payments() {
     fetchPayments();
   }, [fetchPayments]);
 
-  // Refresh payments when window regains focus (e.g., after marking payment as paid in Dashboard)
   useEffect(() => {
     const handleFocus = () => {
       fetchPayments();
     };
-    window.addEventListener('focus', handleFocus);
-    return () => window.removeEventListener('focus', handleFocus);
+    window.addEventListener("focus", handleFocus);
+    return () => window.removeEventListener("focus", handleFocus);
   }, [fetchPayments]);
 
   const handleAddEMI = () => {
@@ -72,79 +67,6 @@ function Payments() {
     }
   };
 
-  const getCategoryBadge = (payment) => {
-    // Get category from payment object
-    const isSavings = payment.category === "savings";
-    
-    return (
-      <span
-        style={{
-          fontSize: '0.75rem',
-          padding: '4px 8px',
-          fontWeight: 600,
-          borderRadius: '6px',
-          backgroundColor: isSavings ? 'rgba(102, 187, 106, 0.9)' : 'rgba(229, 57, 53, 0.9)',
-          color: '#FFFFFF',
-          border: 'none',
-          display: 'inline-block'
-        }}
-      >
-        {isSavings ? "Savings" : "Expense"}
-      </span>
-    );
-  };
-
-  const getNextEMIDate = (payment) => {
-    if (!payment.startDate) {
-      return "-";
-    }
-
-    const startDate = new Date(payment.startDate);
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    startDate.setHours(0, 0, 0, 0);
-
-    const startYear = startDate.getFullYear();
-    const startMonth = startDate.getMonth();
-    const startDay = payment.emiDay || startDate.getDate();
-    const currentYear = today.getFullYear();
-    const currentMonth = today.getMonth();
-    const currentDay = today.getDate();
-
-    // Calculate months difference
-    let monthsDiff = (currentYear - startYear) * 12 + (currentMonth - startMonth);
-
-    // Calculate next payment date
-    let nextPaymentDate = new Date(startDate);
-    
-    if (monthsDiff < 0) {
-      // Before start date, next payment is the start date
-      return startDate;
-    } else if (monthsDiff === 0) {
-      // Same month as start
-      if (currentDay < startDay) {
-        // Payment hasn't come yet this month
-        return startDate;
-      } else {
-        // Payment day has passed or is today, next is next month
-        nextPaymentDate.setMonth(startMonth + 1);
-        return nextPaymentDate;
-      }
-    } else {
-      // Later month
-      nextPaymentDate.setMonth(startMonth + monthsDiff);
-      
-      if (currentDay < startDay) {
-        // Payment hasn't come yet this month
-        return nextPaymentDate;
-      } else {
-        // Payment day has passed or is today, next is next month
-        nextPaymentDate.setMonth(startMonth + monthsDiff + 1);
-        return nextPaymentDate;
-      }
-    }
-  };
-
   const calculatePendingEMIs = (payment) => {
     if (payment.emiType === "recurring") {
       return "Ongoing";
@@ -159,7 +81,6 @@ function Payments() {
     startDate.setHours(0, 0, 0, 0);
     endDate.setHours(0, 0, 0, 0);
 
-    // If the schedule is invalid, nothing is pending
     if (endDate < startDate) {
       return 0;
     }
@@ -174,7 +95,6 @@ function Payments() {
 
     const daysInMonth = (year, month) => new Date(year, month + 1, 0).getDate();
 
-    // Count total scheduled EMIs from start to end (inclusive)
     let totalEmis = 0;
     const totalMonths = (endYear - startYear) * 12 + (endMonth - startMonth) + 1;
 
@@ -195,249 +115,378 @@ function Payments() {
       }
     }
 
-    // Pending = total scheduled - already paid
     return Math.max(0, totalEmis - paidCount);
   };
 
   if (loading) {
     return (
       <div className="content">
-        <div style={{ 
-          display: 'flex', 
-          justifyContent: 'center', 
-          alignItems: 'center', 
-          minHeight: '400px'
-        }}>
-          <i 
-            className="tim-icons icon-refresh-02" 
-            style={{ 
-              fontSize: '3rem', 
-              color: '#FFFFFF',
-              animation: 'spin 1s linear infinite',
-              display: 'inline-block'
-            }} 
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "center",
+            alignItems: "center",
+            minHeight: "400px",
+          }}
+        >
+          <i
+            className="tim-icons icon-refresh-02"
+            style={{
+              fontSize: "2.5rem",
+              color: "#f59e0b",
+              animation: "spin 0.9s linear infinite",
+              display: "inline-block",
+            }}
           />
         </div>
-        <style dangerouslySetInnerHTML={{__html: `
+        <style
+          dangerouslySetInnerHTML={{
+            __html: `
           @keyframes spin {
             from { transform: rotate(0deg); }
             to { transform: rotate(360deg); }
           }
-        `}} />
+        `,
+          }}
+        />
       </div>
     );
   }
 
+  const accentAmber = "#FFA02E";
+  const expenseScheduleCount = emis.filter((p) => p.category !== "savings").length;
+  const savingsScheduleCount = emis.filter((p) => p.category === "savings").length;
+
   return (
-    <div className="content">
-        <Row>
-          <Col xs="12">
-            <Card
+    <div className="content payments-page-root" style={{ maxWidth: "100%", overflowX: "hidden", boxSizing: "border-box" }}>
+      <style
+        dangerouslySetInnerHTML={{
+          __html: `
+        .payments-table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; border-radius: 12px; border: 1px solid rgba(255,255,255,0.06); }
+        .payments-table-wrap table { min-width: 720px; }
+      `,
+        }}
+      />
+
+      <Row>
+        <Col xs="12">
+          <Card
+            style={{
+              background: "linear-gradient(165deg, #18181c 0%, #141416 50%, #121214 100%)",
+              border: "1px solid rgba(255,255,255,0.07)",
+              borderRadius: 16,
+              boxShadow: "0 4px 32px rgba(0,0,0,0.45), 0 0 0 1px rgba(255,160,46,0.06) inset",
+              overflow: "hidden",
+            }}
+          >
+            <CardHeader
               style={{
-                background: "linear-gradient(135deg, #1E1E1E 0%, #2d2b42 100%)",
-                border: "1px solid rgba(255, 82, 82, 0.3)",
-                borderRadius: "15px",
-                boxShadow: "0 8px 32px rgba(255, 82, 82, 0.18)",
+                background: "linear-gradient(90deg, rgba(255,160,46,0.08) 0%, transparent 55%)",
+                borderBottom: "1px solid rgba(255,255,255,0.07)",
+                padding: "1.1rem clamp(0.85rem, 3vw, 1.35rem)",
               }}
             >
-              <CardHeader
-                style={{
-                  background:
-                    "linear-gradient(135deg, rgba(255, 82, 82, 0.2) 0%, rgba(255, 152, 0, 0.15) 100%)",
-                  borderBottom: "1px solid rgba(255, 82, 82, 0.3)",
-                  borderRadius: "15px 15px 0 0",
-                  padding: "0.5rem 0.75rem",
-                }}
-              >
-                <Row>
-                  <Col className="text-left" sm="6">
-                    <CardTitle
-                      tag="h4"
+              <Row className="align-items-start align-items-md-center" style={{ marginLeft: 0, marginRight: 0 }}>
+                <Col xs="12" md="7" style={{ paddingLeft: 0, paddingRight: 0 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 14, minWidth: 0 }}>
+                    <div
                       style={{
-                        color: "#ffffff",
-                        fontWeight: "700",
-                        margin: "0",
-                        fontSize: "1.15rem",
+                        width: 44,
+                        height: 44,
+                        borderRadius: 12,
+                        background: "linear-gradient(145deg, rgba(255,160,46,0.2) 0%, rgba(255,160,46,0.06) 100%)",
+                        border: "1px solid rgba(255,160,46,0.28)",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        flexShrink: 0,
+                        boxShadow: "0 4px 16px rgba(255,160,46,0.12)",
                       }}
                     >
-                      <i
-                        className="tim-icons icon-credit-card mr-2"
-                        style={{ color: "#FFD166" }}
-                      ></i>
-                      Payments
-                    </CardTitle>
-                    <p className="mb-0" style={{ fontSize: "0.8rem", color: "#FFD166" }}>Manage your EMI payments</p>
-                  </Col>
-                  <Col sm="6" className="text-right">
-                    <Button
-                      style={{
-                        background:
-                          "linear-gradient(135deg, rgba(255, 152, 0, 0.9) 0%, rgba(255, 193, 7, 0.8) 100%)",
-                        border: "none",
-                        borderRadius: "8px",
-                        padding: "6px 12px",
-                        fontWeight: "600",
-                        boxShadow: "0 3px 12px rgba(255, 152, 0, 0.35)",
-                      }}
-                      onClick={handleAddEMI}
-                    >
-                      <i className="tim-icons icon-simple-add mr-1"></i>
-                      Add EMI
-                    </Button>
-                  </Col>
-                </Row>
-              </CardHeader>
-              <CardBody style={{ padding: "1rem" }}>
-                {emis.length === 0 ? (
-                  <div className="text-center py-4" style={{ color: "#CCCCCC" }}>
-                    No payments found. Click "Add EMI" to create one.
+                      <i className="tim-icons icon-credit-card" style={{ fontSize: "1rem", color: "#fbbf24" }} />
+                    </div>
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", marginBottom: 4 }}>
+                        <CardTitle
+                          tag="h4"
+                          style={{
+                            color: "#fff",
+                            fontWeight: 800,
+                            margin: 0,
+                            fontSize: "1.05rem",
+                            letterSpacing: "-0.02em",
+                          }}
+                        >
+                          Payments
+                        </CardTitle>
+                        <span
+                          style={{
+                            fontSize: "0.65rem",
+                            fontWeight: 700,
+                            textTransform: "uppercase",
+                            letterSpacing: "0.08em",
+                            padding: "3px 8px",
+                            borderRadius: 6,
+                            background: "rgba(255,160,46,0.12)",
+                            color: "#fbbf24",
+                            border: "1px solid rgba(255,160,46,0.25)",
+                          }}
+                        >
+                          All schedules
+                        </span>
+                      </div>
+                      <p className="mb-0" style={{ fontSize: "0.78rem", color: "rgba(255,255,255,0.38)", lineHeight: 1.4 }}>
+                        Manage EMI schedules, amounts, and due days
+                      </p>
+                    </div>
                   </div>
-                ) : (
-                  <Row>
-                    {emis.map((payment) => {
-                      const isSavings = payment.category === "savings";
-                      const isRecurring = payment.emiType === "recurring";
-                      const cardBg = isSavings 
-                        ? "linear-gradient(135deg, rgba(102, 187, 106, 0.2) 0%, rgba(76, 175, 80, 0.1) 100%)" 
-                        : "linear-gradient(135deg, rgba(255, 82, 82, 0.2) 0%, rgba(255, 107, 107, 0.1) 100%)";
-                      const borderColor = isSavings 
-                        ? "rgba(102, 187, 106, 0.45)" 
-                        : "rgba(255, 82, 82, 0.45)";
-                      
-                      return (
-                        <Col key={payment._id} md="4" lg="3" className="mb-3">
-                          <Card
+                </Col>
+                <Col
+                  xs="12"
+                  md="5"
+                  className="d-flex justify-content-md-end mt-3 mt-md-0"
+                  style={{ paddingLeft: 0, paddingRight: 0 }}
+                >
+                  <button type="button" onClick={handleAddEMI} className="btn-amber-outline">
+                    <i className="tim-icons icon-simple-add mr-1" />
+                    Add EMI
+                  </button>
+                </Col>
+              </Row>
+            </CardHeader>
+            <CardBody style={{ padding: "1.1rem clamp(0.85rem, 3vw, 1.35rem)", background: "rgba(0,0,0,0.14)" }}>
+              {emis.length === 0 ? (
+                <div className="text-center py-5">
+                  <i
+                    className="tim-icons icon-credit-card"
+                    style={{ fontSize: "3rem", color: accentAmber, marginBottom: "1rem", opacity: 0.45 }}
+                  />
+                  <div style={{ color: "rgba(255,255,255,0.55)", fontSize: "1rem", marginBottom: "0.5rem", fontWeight: 600 }}>
+                    No payments yet
+                  </div>
+                  <div style={{ color: "rgba(255,255,255,0.35)", fontSize: "0.85rem", marginBottom: "1.5rem" }}>
+                    Add an EMI to start tracking your monthly schedule
+                  </div>
+                  <button type="button" onClick={handleAddEMI} className="btn-amber-outline">
+                    <i className="tim-icons icon-simple-add mr-1" />
+                    Add your first payment
+                  </button>
+                </div>
+              ) : (
+                <div className="payments-table-wrap">
+                  <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.83rem" }}>
+                    <thead>
+                      <tr>
+                        {["#", "Name", "Type", "Amount", "EMI Day", "End Date", "Pending", "Status", ""].map((h, i) => (
+                          <th
+                            key={i}
                             style={{
-                              background: cardBg,
-                              border: `1px solid ${borderColor}`,
-                              borderRadius: "12px",
-                              boxShadow: isSavings ? "0 3px 10px rgba(102, 187, 106, 0.18)" : "0 3px 10px rgba(255, 82, 82, 0.18)",
-                              backdropFilter: "blur(10px)",
-                              WebkitBackdropFilter: "blur(10px)",
-                              height: "100%",
-                              position: "relative",
-                              overflow: "hidden",
+                              padding: "11px 14px",
+                              color: "rgba(255,255,255,0.4)",
+                              fontWeight: 700,
+                              textAlign: i === 3 ? "right" : i === 6 ? "center" : "left",
+                              whiteSpace: "nowrap",
+                              fontSize: "0.68rem",
+                              letterSpacing: "0.07em",
+                              textTransform: "uppercase",
+                              borderBottom: "1px solid rgba(255,255,255,0.08)",
+                              background: "rgba(255,255,255,0.03)",
                             }}
                           >
-                            <CardBody style={{ padding: "0.75rem" }}>
-                              {/* Header with name and category */}
-                              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "0.5rem" }}>
-                                <div style={{ flex: 1 }}>
-                                  <h5 style={{ color: "#FFFFFF", fontWeight: 600, marginBottom: "4px", fontSize: "0.95rem" }}>
-                                    {payment.name}
-                                  </h5>
-                                  {getCategoryBadge(payment)}
-                                </div>
-                                <div style={{ display: "flex", gap: "8px" }}>
-                                  <Button
-                                    size="sm"
-                                    style={{
-                                      background: "linear-gradient(135deg, rgba(0, 191, 255, 0.8) 0%, rgba(30, 144, 255, 0.7) 100%)",
-                                      border: "none",
-                                      padding: "4px 8px",
-                                      borderRadius: "6px",
-                                    }}
-                                    onClick={() => navigate(`/admin/payments/edit/${payment._id}`)}
-                                  >
-                                    <i className="tim-icons icon-pencil" style={{ fontSize: "0.85rem" }} />
-                                  </Button>
-                                  <Button
-                                    size="sm"
-                                    style={{
-                                      background: "linear-gradient(135deg, rgba(255, 82, 82, 0.9) 0%, rgba(255, 107, 107, 0.8) 100%)",
-                                      border: "none",
-                                      padding: "4px 8px",
-                                      borderRadius: "6px",
-                                    }}
-                                    onClick={() => handleDelete(payment._id)}
-                                  >
-                                    <i className="tim-icons icon-trash-simple" style={{ fontSize: "0.85rem" }} />
-                                  </Button>
-                                </div>
-                              </div>
-
-                              {/* Amount */}
-                              <div style={{ marginBottom: "0.5rem" }}>
-                                <div style={{ color: "rgba(255, 255, 255, 0.7)", fontSize: "0.75rem", marginBottom: "2px" }}>
-                                  Amount
-                                </div>
-                                <div style={{ color: "#FFFFFF", fontSize: "1.1rem", fontWeight: 600 }}>
-                                  ₹{payment.amount?.toLocaleString() || "0.00"}
-                                </div>
-                              </div>
-
-                              {/* Details Grid */}
-                              <div style={{ 
-                                display: "grid", 
-                                gridTemplateColumns: "1fr 1fr", 
-                                gap: "0.5rem",
-                                marginBottom: "0.5rem"
-                              }}>
-                                <div>
-                                  <div style={{ color: "rgba(255, 255, 255, 0.7)", fontSize: "0.75rem", marginBottom: "2px" }}>
-                                    EMI Day
-                                  </div>
-                                  <div style={{ color: "#FFFFFF", fontWeight: 500 }}>
-                                    {payment.emiDay || "-"}
-                                  </div>
-                                </div>
-                                <div>
-                                  <div style={{ color: "rgba(255, 255, 255, 0.7)", fontSize: "0.75rem", marginBottom: "2px" }}>
-                                    End Date
-                                  </div>
-                                  <div style={{ color: "#FFFFFF", fontWeight: 500 }}>
-                                    {payment.endDate
-                                      ? format(new Date(payment.endDate), "MMM dd, yyyy")
-                                      : payment.emiType === "recurring"
-                                      ? "Ongoing"
-                                      : "-"}
-                                  </div>
-                                </div>
-                              </div>
-
-                              {/* Pending EMIs and Status */}
-                              <div style={{ 
-                                display: "flex", 
-                                justifyContent: "space-between", 
-                                alignItems: "center",
-                                paddingTop: "0.5rem",
-                                borderTop: "1px solid rgba(255, 255, 255, 0.1)"
-                              }}>
-                                <div>
-                                  <div style={{ color: "rgba(255, 255, 255, 0.7)", fontSize: "0.75rem", marginBottom: "2px" }}>
-                                    Pending EMIs
-                                  </div>
-                                  <div style={{ color: "#FFD166", fontSize: "1rem", fontWeight: 600 }}>
-                                    {calculatePendingEMIs(payment)}
-                                  </div>
-                                </div>
-                                <div>
-                                  <Badge
-                                    style={{
-                                      background: payment.status === "active"
-                                        ? "linear-gradient(135deg, rgba(102, 187, 106, 0.9) 0%, rgba(76, 175, 80, 0.8) 100%)"
-                                        : payment.status === "completed"
-                                        ? "linear-gradient(135deg, rgba(0, 191, 255, 0.9) 0%, rgba(30, 144, 255, 0.8) 100%)"
-                                        : "linear-gradient(135deg, rgba(108, 117, 125, 0.9) 0%, rgba(108, 117, 125, 0.8) 100%)",
-                                      border: "none",
-                                      padding: "4px 10px",
-                                      borderRadius: "6px",
-                                      fontSize: "0.75rem",
-                                    }}
-                                  >
-                                    {payment.status?.charAt(0).toUpperCase() + payment.status?.slice(1) || "Active"}
-                                  </Badge>
-                                </div>
-                              </div>
-                            </CardBody>
-                          </Card>
-                        </Col>
-                      );
-                    })}
-                  </Row>
-                )}
-              </CardBody>
-            </Card>
+                            {h}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {emis.map((payment, idx) => {
+                        const pending = calculatePendingEMIs(payment);
+                        const isSavings = payment.category === "savings";
+                        const typeAccent = isSavings ? "#3cd278" : "#ff5a5a";
+                        return (
+                          <tr
+                            key={payment._id}
+                            style={{
+                              borderBottom: "1px solid rgba(255,255,255,0.05)",
+                              transition: "background 0.15s ease",
+                            }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.background = "rgba(255,255,255,0.04)";
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.background = "transparent";
+                            }}
+                          >
+                            <td style={{ padding: "11px 14px", color: "rgba(255,255,255,0.28)", fontWeight: 600, width: 40 }}>
+                              {idx + 1}
+                            </td>
+                            <td style={{ padding: "11px 14px", color: "#fff", fontWeight: 700, fontSize: "0.88rem" }}>
+                              {payment.name}
+                            </td>
+                            <td style={{ padding: "11px 14px" }}>
+                              <span
+                                style={{
+                                  fontSize: "0.6rem",
+                                  fontWeight: 800,
+                                  padding: "3px 8px",
+                                  borderRadius: 6,
+                                  textTransform: "uppercase",
+                                  letterSpacing: "0.06em",
+                                  background: `${typeAccent}18`,
+                                  color: typeAccent,
+                                  border: `1px solid ${typeAccent}35`,
+                                }}
+                              >
+                                {isSavings ? "Savings" : "Expense"}
+                              </span>
+                            </td>
+                            <td
+                              style={{
+                                padding: "11px 14px",
+                                textAlign: "right",
+                                color: "#fbbf24",
+                                fontWeight: 800,
+                                whiteSpace: "nowrap",
+                                fontSize: "0.9rem",
+                              }}
+                            >
+                              ₹{payment.amount?.toLocaleString("en-IN") || "0"}
+                            </td>
+                            <td style={{ padding: "11px 14px", color: "rgba(255,255,255,0.5)" }}>{payment.emiDay || "—"}</td>
+                            <td style={{ padding: "11px 14px", color: "rgba(255,255,255,0.5)", whiteSpace: "nowrap" }}>
+                              {payment.endDate
+                                ? format(new Date(payment.endDate), "dd MMM yyyy")
+                                : payment.emiType === "recurring"
+                                  ? "Ongoing"
+                                  : "—"}
+                            </td>
+                            <td style={{ padding: "11px 14px", textAlign: "center" }}>
+                              {pending === "Ongoing" ? (
+                                <span style={{ color: "rgba(255,255,255,0.35)", fontSize: "0.95rem" }}>∞</span>
+                              ) : (
+                                <span
+                                  style={{
+                                    display: "inline-flex",
+                                    alignItems: "center",
+                                    justifyContent: "center",
+                                    minWidth: 28,
+                                    height: 28,
+                                    padding: "0 8px",
+                                    borderRadius: 8,
+                                    fontWeight: 700,
+                                    fontSize: "0.78rem",
+                                    background: "rgba(255,255,255,0.06)",
+                                    border: "1px solid rgba(255,255,255,0.1)",
+                                    color: "rgba(255,255,255,0.65)",
+                                  }}
+                                >
+                                  {pending}
+                                </span>
+                              )}
+                            </td>
+                            <td style={{ padding: "11px 14px" }}>
+                              <span
+                                style={{
+                                  fontSize: "0.68rem",
+                                  fontWeight: 700,
+                                  padding: "4px 10px",
+                                  borderRadius: 8,
+                                  background:
+                                    (payment.status || "active") === "active"
+                                      ? "rgba(16,185,129,0.12)"
+                                      : "rgba(255,255,255,0.06)",
+                                  border:
+                                    (payment.status || "active") === "active"
+                                      ? "1px solid rgba(16,185,129,0.25)"
+                                      : "1px solid rgba(255,255,255,0.1)",
+                                  color:
+                                    (payment.status || "active") === "active" ? "#6ee7b7" : "rgba(255,255,255,0.45)",
+                                }}
+                              >
+                                {payment.status?.charAt(0).toUpperCase() + payment.status?.slice(1) || "Active"}
+                              </span>
+                            </td>
+                            <td style={{ padding: "11px 12px", textAlign: "right", whiteSpace: "nowrap" }}>
+                              <button
+                                type="button"
+                                onClick={() => navigate(`/admin/payments/edit/${payment._id}`)}
+                                title="Edit"
+                                style={{
+                                  background: "rgba(255,160,46,0.12)",
+                                  border: "1px solid rgba(255,160,46,0.3)",
+                                  borderRadius: 8,
+                                  width: 32,
+                                  height: 32,
+                                  display: "inline-flex",
+                                  alignItems: "center",
+                                  justifyContent: "center",
+                                  cursor: "pointer",
+                                  color: "#fbbf24",
+                                  marginRight: 6,
+                                }}
+                              >
+                                <i className="tim-icons icon-pencil" style={{ fontSize: "0.7rem" }} />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleDelete(payment._id)}
+                                title="Delete"
+                                style={{
+                                  background: "rgba(239,68,68,0.08)",
+                                  border: "1px solid rgba(239,68,68,0.22)",
+                                  borderRadius: 8,
+                                  width: 32,
+                                  height: 32,
+                                  display: "inline-flex",
+                                  alignItems: "center",
+                                  justifyContent: "center",
+                                  cursor: "pointer",
+                                  color: "#f87171",
+                                }}
+                              >
+                                <i className="tim-icons icon-trash-simple" style={{ fontSize: "0.7rem" }} />
+                              </button>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                    <tfoot>
+                      <tr style={{ borderTop: "1px solid rgba(255,255,255,0.1)", background: "rgba(255,255,255,0.02)" }}>
+                        <td colSpan={3} style={{ padding: "12px 14px", color: "rgba(255,255,255,0.4)", fontSize: "0.78rem" }}>
+                          {emis.length} payment{emis.length !== 1 ? "s" : ""} · {expenseScheduleCount} expenses ·{" "}
+                          {savingsScheduleCount} savings
+                        </td>
+                        <td
+                          style={{
+                            padding: "12px 14px",
+                            textAlign: "right",
+                            color: "#fbbf24",
+                            fontWeight: 800,
+                            fontSize: "0.92rem",
+                            whiteSpace: "nowrap",
+                          }}
+                        >
+                          ₹{emis.reduce((s, p) => s + (p.amount || 0), 0).toLocaleString("en-IN")}
+                          <span
+                            style={{
+                              color: "rgba(255,255,255,0.35)",
+                              fontSize: "0.72rem",
+                              fontWeight: 600,
+                              marginLeft: 6,
+                            }}
+                          >
+                            /mo combined
+                          </span>
+                        </td>
+                        <td colSpan={5} />
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
+              )}
+            </CardBody>
+          </Card>
         </Col>
       </Row>
     </div>

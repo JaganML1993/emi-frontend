@@ -290,7 +290,7 @@ function AddEMI() {
                   <Row>
                     <Col md="12" className="d-flex justify-content-end gap-2">
                       <Button
-                        color="secondary"
+                        className="btn-cancel-outline"
                         onClick={handleCancel}
                         disabled={saving}
                       >

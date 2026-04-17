@@ -54,7 +54,7 @@ function Admin(props) {
         }
       } catch {
         const user = JSON.parse(localStorage.getItem("user") || "{}");
-        setAllowedPaths((user.role === "admin" || user.role === "super_admin") ? ["/dashboard", "/payments", "/budget", "/house-savings", "/gold-savings", "/users", "/user-profile", "/roles-management"] : ["/dashboard", "/payments", "/budget", "/house-savings", "/gold-savings"]);
+        setAllowedPaths((user.role === "admin" || user.role === "super_admin") ? ["/dashboard", "/payments", "/budget", "/house-savings", "/gold-savings", "/expenses", "/users", "/user-profile", "/roles-management"] : ["/dashboard", "/payments", "/budget", "/house-savings", "/gold-savings", "/expenses"]);
       }
     };
     fetchPermissions();

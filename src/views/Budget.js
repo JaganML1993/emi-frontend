@@ -20,12 +20,13 @@ import {
   Alert,
   Badge,
 } from "reactstrap";
-import { format, startOfMonth, endOfMonth, subMonths, startOfYear, endOfYear } from "date-fns";
+import { format } from "date-fns";
 import api from "../config/axios";
 
 const COLORS = [
-  "#60A5FA", "#34D399", "#F87171", "#FBBF24", "#A78BFA",
-  "#F472B6", "#38BDF8", "#4ADE80", "#FB923C", "#E879F9",
+  "rgba(255,255,255,0.55)", "rgba(255,255,255,0.45)", "rgba(255,255,255,0.38)",
+  "rgba(255,255,255,0.32)", "rgba(255,255,255,0.27)", "rgba(255,255,255,0.22)",
+  "rgba(255,255,255,0.55)", "rgba(255,255,255,0.45)", "rgba(255,255,255,0.38)", "rgba(255,255,255,0.32)",
 ];
 
 const ICONS = [
@@ -52,23 +53,41 @@ const PAYMENT_METHODS = [
 const emptyCatForm = { name: "", description: "", color: "#60A5FA", icon: "icon-wallet-43", budgetLimit: "", isDefault: false };
 const emptyExpForm = { title: "", amount: "", date: format(new Date(), "yyyy-MM-dd"), notes: "", paymentMethod: "cash", categoryId: "" };
 
+const accentAmber = "#FFA02E";
+
 const cardStyle = {
-  background: "linear-gradient(135deg, #1E1E1E 0%, #2d2b42 50%, #1e293b 100%)",
-  border: "1px solid rgba(96, 165, 250, 0.35)",
-  borderRadius: "15px",
-  boxShadow: "0 8px 32px rgba(96, 165, 250, 0.12)",
+  background: "linear-gradient(165deg, #18181c 0%, #141416 50%, #121214 100%)",
+  border: "1px solid rgba(255,255,255,0.07)",
+  borderRadius: 16,
+  boxShadow: "0 4px 32px rgba(0,0,0,0.45), 0 0 0 1px rgba(255,160,46,0.06) inset",
+  overflow: "hidden",
 };
-
 const headerStyle = {
-  background: "linear-gradient(135deg, rgba(96, 165, 250, 0.25) 0%, rgba(167, 139, 250, 0.2) 50%, rgba(52, 211, 153, 0.15) 100%)",
-  borderBottom: "1px solid rgba(96, 165, 250, 0.25)",
-  borderRadius: "15px 15px 0 0",
-  padding: "0.5rem 0.75rem",
+  background: "linear-gradient(90deg, rgba(255,160,46,0.08) 0%, transparent 55%)",
+  borderBottom: "1px solid rgba(255,255,255,0.07)",
+  padding: "1rem clamp(0.85rem, 3vw, 1.15rem)",
 };
-
-const inputStyle = { background: "#1e1e2d", color: "#fff", border: "1px solid rgba(96, 165, 250, 0.4)" };
-const modalBodyStyle = { background: "#2d2b42", color: "#fff" };
-const modalFooterStyle = { background: "#1e1e2d", borderTop: "1px solid rgba(255,255,255,0.1)" };
+const inputStyle = {
+  background: "rgba(255,255,255,0.06)",
+  color: "#fff",
+  border: "1px solid rgba(255,255,255,0.12)",
+  borderRadius: 10,
+};
+const modalBodyStyle = { background: "#1a1a1e", color: "#fff" };
+const modalFooterStyle = { background: "#141416", borderTop: "1px solid rgba(255,255,255,0.08)" };
+const labelStyle = {
+  color: "rgba(255,255,255,0.55)",
+  fontSize: "0.72rem",
+  fontWeight: 700,
+  textTransform: "uppercase",
+  letterSpacing: "0.06em",
+  marginBottom: 6,
+};
+const modalHeaderStyle = {
+  background: "#141416",
+  color: "#fff",
+  borderBottom: "1px solid rgba(255,255,255,0.08)",
+};
 
 function Budget() {
   const [categories, setCategories] = useState([]);
@@ -93,21 +112,8 @@ function Budget() {
   const [expSaving, setExpSaving] = useState(false);
   const [deleteExpConfirm, setDeleteExpConfirm] = useState(null);
 
-  // Filters
-  const [dateFilter, setDateFilter] = useState("all");
-  const [customFrom, setCustomFrom] = useState("");
-  const [customTo, setCustomTo] = useState("");
   const [page, setPage] = useState(1);
   const pageSize = 15;
-
-  const getDateRange = useCallback(() => {
-    const now = new Date();
-    if (dateFilter === "this_month") return { fromDate: format(startOfMonth(now), "yyyy-MM-dd"), toDate: format(endOfMonth(now), "yyyy-MM-dd") };
-    if (dateFilter === "last_3_months") return { fromDate: format(startOfMonth(subMonths(now, 2)), "yyyy-MM-dd"), toDate: format(endOfMonth(now), "yyyy-MM-dd") };
-    if (dateFilter === "this_year") return { fromDate: format(startOfYear(now), "yyyy-MM-dd"), toDate: format(endOfYear(now), "yyyy-MM-dd") };
-    if (dateFilter === "custom" && customFrom && customTo) return { fromDate: customFrom, toDate: customTo };
-    return { fromDate: null, toDate: null };
-  }, [dateFilter, customFrom, customTo]);
 
   const fetchCategories = useCallback(async () => {
     try {
@@ -124,11 +130,8 @@ function Budget() {
   const fetchExpenses = useCallback(async () => {
     setExpLoading(true);
     try {
-      const { fromDate, toDate } = getDateRange();
       const params = new URLSearchParams();
       if (selectedCategoryId && selectedCategoryId !== "all") params.set("categoryId", selectedCategoryId);
-      if (fromDate) params.set("fromDate", fromDate);
-      if (toDate) params.set("toDate", toDate);
       params.set("page", page);
       params.set("limit", pageSize);
       const res = await api.get(`/api/budget/expenses?${params.toString()}`);
@@ -139,14 +142,12 @@ function Budget() {
     } finally {
       setExpLoading(false);
     }
-  }, [selectedCategoryId, getDateRange, page, pageSize]);
+  }, [selectedCategoryId, page, pageSize]);
 
   useEffect(() => {
     const init = async () => {
       setLoading(true);
-      const cats = await fetchCategories();
-      const defaultCat = cats.find(c => c.isDefault);
-      if (defaultCat) setSelectedCategoryId(defaultCat._id);
+      await fetchCategories();
       setLoading(false);
     };
     init();
@@ -158,23 +159,9 @@ function Budget() {
 
   useEffect(() => {
     setPage(1);
-  }, [selectedCategoryId, dateFilter, customFrom, customTo]);
+  }, [selectedCategoryId]);
 
-  // ─── Totals ───────────────────────────────────────────────────────────────
-  const summaryCards = useMemo(() => {
-    const totalCategories = categories.length;
-    const grandTotal = categories.reduce((s, c) => s + (c.totalSpent || 0), 0);
-    const selectedCat = selectedCategoryId !== "all" ? categories.find(c => c._id === selectedCategoryId) : null;
-    const selectedTotal = selectedCat ? (selectedCat.totalSpent || 0) : grandTotal;
-    const selectedLimit = selectedCat ? (selectedCat.budgetLimit || 0) : categories.reduce((s, c) => s + (c.budgetLimit || 0), 0);
-    const remaining = selectedLimit > 0 ? Math.max(0, selectedLimit - selectedTotal) : null;
-    return { totalCategories, grandTotal, selectedTotal, selectedLimit, remaining };
-  }, [categories, selectedCategoryId]);
-
-  const totalExpPages = useMemo(() => {
-    // rough count from current page data for pagination display
-    return expenses.length === pageSize ? page + 1 : page;
-  }, [expenses, page, pageSize]);
+  const grandTotal = useMemo(() => categories.reduce((s, c) => s + (c.totalSpent || 0), 0), [categories]);
 
   // ─── Category CRUD ────────────────────────────────────────────────────────
   const openAddCat = () => { setEditCatId(null); setCatForm(emptyCatForm); setError(""); setCatModalOpen(true); };
@@ -284,24 +271,21 @@ function Budget() {
     }
   };
 
-  const exportCSV = () => {
-    const headers = "Date,Category,Title,Amount,Payment Method,Notes\n";
-    const rows = expenses.map(e =>
-      `${format(new Date(e.date), "yyyy-MM-dd")},"${e.category?.name || ""}","${e.title}",${Number(e.amount || 0).toFixed(2)},${e.paymentMethod},"${(e.notes || "").replace(/"/g, '""')}"`
-    ).join("\n");
-    const blob = new Blob([headers + rows], { type: "text/csv" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `budget-expenses-${format(new Date(), "yyyy-MM-dd")}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
-  };
-
   if (loading) {
     return (
-      <div className="content" style={{ display: "flex", justifyContent: "center", alignItems: "center", minHeight: "400px" }}>
-        <Spinner color="primary" />
+      <div className="content">
+        <div style={{ display: "flex", justifyContent: "center", alignItems: "center", minHeight: "400px" }}>
+          <i
+            className="tim-icons icon-refresh-02"
+            style={{
+              fontSize: "2.5rem",
+              color: "#f59e0b",
+              animation: "budgetSpin 0.9s linear infinite",
+              display: "inline-block",
+            }}
+          />
+        </div>
+        <style dangerouslySetInnerHTML={{ __html: `@keyframes budgetSpin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }` }} />
       </div>
     );
   }
@@ -310,127 +294,51 @@ function Budget() {
   const budgetProgress = selectedCat?.budgetLimit > 0 ? Math.min(100, ((selectedCat.totalSpent || 0) / selectedCat.budgetLimit) * 100) : null;
 
   return (
-    <div className="content">
+    <div className="content budget-page-root" style={{ maxWidth: "100%", overflowX: "hidden", boxSizing: "border-box" }}>
+      <style
+        dangerouslySetInnerHTML={{
+          __html: `
+        @keyframes budgetSpin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        .budget-table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; border-radius: 12px; border: 1px solid rgba(255,255,255,0.06); }
+        .budget-table-wrap table { min-width: 640px; }
+      `,
+        }}
+      />
       {/* ── Alerts ── */}
       {(error || success) && (
         <Row>
           <Col xs="12">
-            {error && <Alert color="danger" toggle={() => setError("")} style={{ background: "rgba(239,68,68,0.15)", border: "1px solid rgba(239,68,68,0.45)", color: "#FCA5A5" }}>{error}</Alert>}
-            {success && <Alert color="success" toggle={() => setSuccess("")} style={{ background: "rgba(34,197,94,0.15)", border: "1px solid rgba(34,197,94,0.45)", color: "#BBF7D0" }}>{success}</Alert>}
+            {error && (
+              <Alert
+                color="danger"
+                toggle={() => setError("")}
+                style={{
+                  background: "rgba(239, 68, 68, 0.12)",
+                  border: "1px solid rgba(239, 68, 68, 0.35)",
+                  color: "#FCA5A5",
+                  borderRadius: 10,
+                }}
+              >
+                {error}
+              </Alert>
+            )}
+            {success && (
+              <Alert
+                color="success"
+                toggle={() => setSuccess("")}
+                style={{
+                  background: "rgba(34, 197, 94, 0.12)",
+                  border: "1px solid rgba(34, 197, 94, 0.35)",
+                  color: "#BBF7D0",
+                  borderRadius: 10,
+                }}
+              >
+                {success}
+              </Alert>
+            )}
           </Col>
         </Row>
       )}
-
-      {/* ── Top Filter Bar ── */}
-      <Row className="mb-3 align-items-end">
-        <Col md="3">
-          <Label style={{ color: "#A78BFA", fontSize: "0.8rem", marginBottom: "4px" }}>
-            <i className="tim-icons icon-tag mr-1" style={{ fontSize: "0.75rem" }} /> Category
-          </Label>
-          <Input
-            type="select"
-            value={selectedCategoryId}
-            onChange={e => setSelectedCategoryId(e.target.value)}
-            style={{ background: "#1e1e2d", color: "#fff", border: "1px solid rgba(167,139,250,0.5)", borderRadius: "8px" }}
-          >
-            <option value="all">All Categories</option>
-            {categories.map(c => (
-              <option key={c._id} value={c._id}>
-                {c.name}{c.isDefault ? " ★" : ""}
-              </option>
-            ))}
-          </Input>
-        </Col>
-        <Col md="3">
-          <Label style={{ color: "#60A5FA", fontSize: "0.8rem", marginBottom: "4px" }}>
-            <i className="tim-icons icon-calendar-60 mr-1" style={{ fontSize: "0.75rem" }} /> Date Range
-          </Label>
-          <Input
-            type="select"
-            value={dateFilter}
-            onChange={e => setDateFilter(e.target.value)}
-            style={{ background: "#1e1e2d", color: "#fff", border: "1px solid rgba(96,165,250,0.5)", borderRadius: "8px" }}
-          >
-            <option value="all">All time</option>
-            <option value="this_month">This month</option>
-            <option value="last_3_months">Last 3 months</option>
-            <option value="this_year">This year</option>
-            <option value="custom">Custom</option>
-          </Input>
-        </Col>
-        {dateFilter === "custom" && (
-          <>
-            <Col md="2">
-              <Label style={{ color: "#FBBF24", fontSize: "0.8rem", marginBottom: "4px" }}>From</Label>
-              <Input type="date" value={customFrom} onChange={e => setCustomFrom(e.target.value)}
-                style={{ background: "#1e1e2d", color: "#fff", border: "1px solid rgba(251,191,36,0.5)", borderRadius: "8px" }} />
-            </Col>
-            <Col md="2">
-              <Label style={{ color: "#FBBF24", fontSize: "0.8rem", marginBottom: "4px" }}>To</Label>
-              <Input type="date" value={customTo} onChange={e => setCustomTo(e.target.value)}
-                style={{ background: "#1e1e2d", color: "#fff", border: "1px solid rgba(251,191,36,0.5)", borderRadius: "8px" }} />
-            </Col>
-          </>
-        )}
-        {selectedCategoryId !== "all" && selectedCat && (
-          <Col md="2" className="d-flex align-items-end">
-            <div style={{
-              padding: "6px 12px", borderRadius: "8px",
-              background: `${selectedCat.color}20`,
-              border: `1px solid ${selectedCat.color}60`,
-              fontSize: "0.8rem", color: selectedCat.color, fontWeight: 600
-            }}>
-              <i className={`tim-icons ${selectedCat.icon} mr-1`} />
-              {selectedCat.name}
-              {selectedCat.isDefault && <span style={{ marginLeft: "4px", color: "#FBBF24" }}>★</span>}
-            </div>
-          </Col>
-        )}
-      </Row>
-
-      {/* ── Summary Cards ── */}
-      <Row className="mb-3">
-        <Col md="3">
-          <Card style={{ background: "linear-gradient(135deg, rgba(96,165,250,0.15) 0%, rgba(96,165,250,0.05) 100%)", border: "1px solid rgba(96,165,250,0.4)", borderRadius: "12px" }}>
-            <CardBody className="py-3">
-              <p style={{ fontSize: "0.75rem", color: "#60A5FA", margin: 0 }}>Total Categories</p>
-              <h4 style={{ color: "#fff", margin: 0 }}>{summaryCards.totalCategories}</h4>
-            </CardBody>
-          </Card>
-        </Col>
-        <Col md="3">
-          <Card style={{ background: "linear-gradient(135deg, rgba(248,113,113,0.15) 0%, rgba(248,113,113,0.05) 100%)", border: "1px solid rgba(248,113,113,0.4)", borderRadius: "12px" }}>
-            <CardBody className="py-3">
-              <p style={{ fontSize: "0.75rem", color: "#F87171", margin: 0 }}>
-                {selectedCategoryId === "all" ? "Grand Total Spent" : `${selectedCat?.name || ""} Spent`}
-              </p>
-              <h4 style={{ color: "#fff", margin: 0 }}>₹{summaryCards.selectedTotal.toLocaleString("en-IN", { maximumFractionDigits: 2 })}</h4>
-            </CardBody>
-          </Card>
-        </Col>
-        <Col md="3">
-          <Card style={{ background: "linear-gradient(135deg, rgba(52,211,153,0.15) 0%, rgba(52,211,153,0.05) 100%)", border: "1px solid rgba(52,211,153,0.4)", borderRadius: "12px" }}>
-            <CardBody className="py-3">
-              <p style={{ fontSize: "0.75rem", color: "#34D399", margin: 0 }}>
-                {selectedCategoryId === "all" ? "Total Budget Limit" : "Budget Limit"}
-              </p>
-              <h4 style={{ color: "#fff", margin: 0 }}>
-                {summaryCards.selectedLimit > 0 ? `₹${summaryCards.selectedLimit.toLocaleString("en-IN", { maximumFractionDigits: 2 })}` : <span style={{ fontSize: "1rem", color: "#9a9a9a" }}>Not set</span>}
-              </h4>
-            </CardBody>
-          </Card>
-        </Col>
-        <Col md="3">
-          <Card style={{ background: "linear-gradient(135deg, rgba(167,139,250,0.15) 0%, rgba(167,139,250,0.05) 100%)", border: "1px solid rgba(167,139,250,0.4)", borderRadius: "12px" }}>
-            <CardBody className="py-3">
-              <p style={{ fontSize: "0.75rem", color: "#A78BFA", margin: 0 }}>Remaining Budget</p>
-              <h4 style={{ color: summaryCards.remaining !== null && summaryCards.remaining === 0 ? "#F87171" : "#fff", margin: 0 }}>
-                {summaryCards.remaining !== null ? `₹${summaryCards.remaining.toLocaleString("en-IN", { maximumFractionDigits: 2 })}` : <span style={{ fontSize: "1rem", color: "#9a9a9a" }}>—</span>}
-              </h4>
-            </CardBody>
-          </Card>
-        </Col>
-      </Row>
 
       <Row>
         {/* ── Categories Panel ── */}
@@ -438,57 +346,49 @@ function Budget() {
           <Card style={cardStyle}>
             <CardHeader style={headerStyle}>
               <div className="d-flex justify-content-between align-items-center">
-                <CardTitle tag="h5" style={{ color: "#fff", margin: 0, fontSize: "1rem" }}>
-                  <i className="tim-icons icon-tag mr-2" style={{ color: "#A78BFA" }}></i>
+                <CardTitle tag="h5" style={{ color: "#fff", margin: 0, fontSize: "1.02rem", fontWeight: 800, letterSpacing: "-0.02em" }}>
+                  <i className="tim-icons icon-tag mr-2" style={{ color: "#fbbf24" }} />
                   Categories
                 </CardTitle>
-                <Button
-                  size="sm"
-                  onClick={openAddCat}
-                  style={{ background: "linear-gradient(135deg, #A78BFA, #7C3AED)", border: "none", borderRadius: "6px", padding: "4px 10px" }}
-                  title="New Category"
-                >
+                <Button type="button" className="btn-amber-outline" size="sm" onClick={openAddCat} style={{ padding: "6px 12px" }} title="New Category">
                   <i className="tim-icons icon-simple-add" />
                 </Button>
               </div>
             </CardHeader>
-            <CardBody style={{ padding: "0.5rem" }}>
+            <CardBody style={{ padding: "0.65rem", background: "rgba(0,0,0,0.14)" }}>
               {/* All categories option */}
               <div
                 onClick={() => setSelectedCategoryId("all")}
                 style={{
                   display: "flex", alignItems: "center", gap: "10px",
                   padding: "9px 10px", borderRadius: "8px", cursor: "pointer", marginBottom: "4px",
-                  background: selectedCategoryId === "all"
-                    ? "linear-gradient(135deg, rgba(96,165,250,0.2), rgba(167,139,250,0.15))"
-                    : "rgba(255,255,255,0.04)",
-                  border: selectedCategoryId === "all" ? "1px solid rgba(96,165,250,0.45)" : "1px solid transparent",
+                  background: selectedCategoryId === "all" ? "rgba(255,160,46,0.1)" : "rgba(255,255,255,0.03)",
+                  border: selectedCategoryId === "all" ? "1px solid rgba(255,160,46,0.3)" : "1px solid transparent",
                   transition: "all 0.2s"
                 }}
               >
-                <div style={{ width: "28px", height: "28px", borderRadius: "6px", background: "rgba(96,165,250,0.2)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                  <i className="tim-icons icon-app" style={{ color: "#60A5FA", fontSize: "0.85rem" }} />
+                <div style={{ width: "28px", height: "28px", borderRadius: "6px", background: "rgba(255,255,255,0.08)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                  <i className="tim-icons icon-app" style={{ color: "rgba(255,255,255,0.5)", fontSize: "0.85rem" }} />
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ color: "#fff", fontWeight: 600, fontSize: "0.85rem", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>All Categories</div>
                   <div style={{ fontSize: "0.72rem", color: "#9a9a9a", marginTop: "1px" }}>
-                    ₹{summaryCards.grandTotal.toLocaleString("en-IN", { maximumFractionDigits: 2 })} total
+                    ₹{grandTotal.toLocaleString("en-IN", { maximumFractionDigits: 2 })} total
                   </div>
                 </div>
-                <Badge style={{ background: "rgba(96,165,250,0.25)", color: "#60A5FA", flexShrink: 0 }}>{categories.length}</Badge>
+                <Badge style={{ background: "rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.5)", border: "1px solid rgba(255,255,255,0.1)", flexShrink: 0 }}>{categories.length}</Badge>
               </div>
 
               {categories.length === 0 ? (
-                <div className="text-center py-4" style={{ color: "#9a9a9a", fontSize: "0.85rem" }}>
-                  <i className="tim-icons icon-tag" style={{ fontSize: "2rem", marginBottom: "8px", display: "block", color: "#A78BFA", opacity: 0.6 }} />
+                <div className="text-center py-4" style={{ color: "rgba(255,255,255,0.45)", fontSize: "0.85rem" }}>
+                  <i className="tim-icons icon-tag" style={{ fontSize: "2rem", marginBottom: "8px", display: "block", color: accentAmber, opacity: 0.45 }} />
                   No categories yet.<br />
-                  <span style={{ color: "#A78BFA", cursor: "pointer" }} onClick={openAddCat}>Create one</span>
+                  <span style={{ color: "rgba(255,255,255,0.5)", cursor: "pointer" }} onClick={openAddCat}>Create one</span>
                 </div>
               ) : (
                 categories.map(cat => {
                   const isSelected = selectedCategoryId === cat._id;
                   const progress = cat.budgetLimit > 0 ? Math.min(100, ((cat.totalSpent || 0) / cat.budgetLimit) * 100) : null;
-                  const isOver = progress !== null && progress >= 100;
                   return (
                     <div
                       key={cat._id}
@@ -496,47 +396,46 @@ function Budget() {
                       style={{
                         display: "flex", alignItems: "center", gap: "10px",
                         padding: "9px 10px", borderRadius: "8px", cursor: "pointer", marginBottom: "4px",
-                        background: isSelected ? `linear-gradient(135deg, ${cat.color}22, ${cat.color}10)` : "rgba(255,255,255,0.04)",
-                        border: isSelected ? `1px solid ${cat.color}60` : "1px solid transparent",
+                        background: isSelected ? "rgba(255,160,46,0.1)" : "rgba(255,255,255,0.03)",
+                        border: isSelected ? "1px solid rgba(255,160,46,0.28)" : "1px solid transparent",
                         transition: "all 0.2s"
                       }}
                     >
-                      {/* Icon box */}
-                      <div style={{ width: "28px", height: "28px", borderRadius: "6px", background: `${cat.color}25`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                        <i className={`tim-icons ${cat.icon}`} style={{ color: cat.color, fontSize: "0.85rem" }} />
+                      <div style={{ width: "28px", height: "28px", borderRadius: "6px", background: "rgba(255,255,255,0.07)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                        <i className={`tim-icons ${cat.icon}`} style={{ color: "rgba(255,255,255,0.5)", fontSize: "0.85rem" }} />
                       </div>
 
                       {/* Name + amount */}
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ color: "#fff", fontWeight: 600, fontSize: "0.85rem", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
                           {cat.name}
-                          {cat.isDefault && <span title="Default" style={{ marginLeft: "5px", color: "#FBBF24", fontSize: "0.72rem" }}>★</span>}
+                          {cat.isDefault && <span title="Default" style={{ marginLeft: "5px", color: "rgba(255,255,255,0.4)", fontSize: "0.7rem" }}>★</span>}
                         </div>
-                        <div style={{ fontSize: "0.72rem", color: isOver ? "#F87171" : "#9a9a9a", marginTop: "1px" }}>
+                        <div style={{ fontSize: "0.7rem", color: "rgba(255,255,255,0.35)", marginTop: "1px" }}>
                           ₹{(cat.totalSpent || 0).toLocaleString("en-IN", { maximumFractionDigits: 2 })}
                           {cat.budgetLimit > 0 && ` / ₹${cat.budgetLimit.toLocaleString("en-IN", { maximumFractionDigits: 2 })}`}
                         </div>
                         {progress !== null && (
-                          <div style={{ marginTop: "4px", height: "3px", background: "rgba(0,0,0,0.3)", borderRadius: "2px" }}>
-                            <div style={{ width: `${progress}%`, height: "100%", background: isOver ? "#F87171" : cat.color, borderRadius: "2px", transition: "width 0.4s ease" }} />
+                          <div style={{ marginTop: "4px", height: "3px", background: "rgba(255,255,255,0.07)", borderRadius: "2px" }}>
+                            <div
+                              style={{
+                                width: `${progress}%`,
+                                height: "100%",
+                                background: "linear-gradient(90deg, #fbbf24, #e8890c)",
+                                borderRadius: "2px",
+                                transition: "width 0.4s ease",
+                              }}
+                            />
                           </div>
                         )}
                       </div>
 
                       {/* Action buttons */}
                       <div onClick={e => e.stopPropagation()} style={{ display: "flex", flexDirection: "column", gap: "3px", flexShrink: 0 }}>
-                        <button
-                          onClick={() => openEditCat(cat)}
-                          title="Edit"
-                          style={{ background: "rgba(96,165,250,0.15)", border: "1px solid rgba(96,165,250,0.3)", borderRadius: "4px", color: "#60A5FA", width: "22px", height: "22px", padding: 0, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}
-                        >
+                        <button onClick={() => openEditCat(cat)} title="Edit" style={{ background: "rgba(255,160,46,0.12)", border: "1px solid rgba(255,160,46,0.3)", borderRadius: 4, color: "#fbbf24", width: 22, height: 22, padding: 0, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
                           <i className="tim-icons icon-pencil" style={{ fontSize: "0.6rem" }} />
                         </button>
-                        <button
-                          onClick={() => setDeleteCatConfirm(cat)}
-                          title="Delete"
-                          style={{ background: "rgba(248,113,113,0.15)", border: "1px solid rgba(248,113,113,0.3)", borderRadius: "4px", color: "#F87171", width: "22px", height: "22px", padding: 0, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}
-                        >
+                        <button onClick={() => setDeleteCatConfirm(cat)} title="Delete" style={{ background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.22)", borderRadius: 4, color: "#f87171", width: 22, height: 22, padding: 0, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
                           <i className="tim-icons icon-trash-simple" style={{ fontSize: "0.6rem" }} />
                         </button>
                       </div>
@@ -551,132 +450,205 @@ function Budget() {
         {/* ── Expenses Panel ── */}
         <Col md="8" lg="9">
           <Card style={cardStyle}>
-            <CardHeader style={{ ...headerStyle, background: "linear-gradient(135deg, rgba(52,211,153,0.2) 0%, rgba(96,165,250,0.15) 50%, rgba(248,113,113,0.1) 100%)" }}>
+            <CardHeader style={headerStyle}>
               <Row className="align-items-center">
                 <Col sm="6">
-                  <CardTitle tag="h5" style={{ color: "#fff", margin: 0, fontSize: "1rem" }}>
-                    <i className="tim-icons icon-money-coins mr-2" style={{ color: "#34D399" }}></i>
+                  <CardTitle tag="h5" style={{ color: "#fff", margin: 0, fontSize: "1.02rem", fontWeight: 800, letterSpacing: "-0.02em" }}>
+                    <i className="tim-icons icon-money-coins mr-2" style={{ color: "#fbbf24" }} />
                     {selectedCategoryId === "all" ? "All Expenses" : `${selectedCat?.name || ""} Expenses`}
                   </CardTitle>
                   {budgetProgress !== null && (
                     <div className="mt-1">
-                      <div style={{ height: "5px", background: "rgba(0,0,0,0.3)", borderRadius: "3px", maxWidth: "200px" }}>
-                        <div style={{
-                          width: `${budgetProgress}%`, height: "100%",
-                          background: budgetProgress >= 100 ? "#F87171" : budgetProgress >= 80 ? "#FBBF24" : "#34D399",
-                          borderRadius: "3px"
-                        }} />
+                      <div style={{ height: 3, background: "rgba(255,255,255,0.07)", borderRadius: 3, maxWidth: "180px" }}>
+                        <div
+                          style={{
+                            width: `${budgetProgress}%`,
+                            height: "100%",
+                            background: "linear-gradient(90deg, #fbbf24, #e8890c)",
+                            borderRadius: 3,
+                          }}
+                        />
                       </div>
-                      <small style={{ color: "#9a9a9a", fontSize: "0.7rem" }}>{budgetProgress.toFixed(0)}% of budget used</small>
+                      <small style={{ color: "rgba(255,255,255,0.4)", fontSize: "0.68rem" }}>{budgetProgress.toFixed(0)}% of budget used</small>
                     </div>
                   )}
                 </Col>
                 <Col sm="6" className="text-right">
-                  <Button size="sm" className="mr-2" onClick={exportCSV} disabled={expenses.length === 0}
-                    style={{ background: "rgba(167,139,250,0.3)", border: "1px solid rgba(167,139,250,0.5)", color: "#A78BFA" }}>
-                    <i className="tim-icons icon-single-copy-04 mr-1" /> CSV
-                  </Button>
-                  <Button
-                    onClick={openAddExp}
-                    disabled={categories.length === 0}
-                    style={{ background: "linear-gradient(135deg, #34D399, #10B981)", border: "none", borderRadius: "8px", padding: "6px 14px", fontWeight: "600", boxShadow: "0 4px 12px rgba(52,211,153,0.4)" }}
-                  >
+                  <Button type="button" className="btn-amber-outline" onClick={openAddExp} disabled={categories.length === 0} style={{ padding: "6px 14px" }}>
                     <i className="tim-icons icon-simple-add mr-1" /> Add Expense
                   </Button>
                 </Col>
               </Row>
-
             </CardHeader>
 
-            <CardBody style={{ padding: "1rem" }}>
+            <CardBody style={{ padding: "1rem", background: "rgba(0,0,0,0.14)" }}>
               {expLoading ? (
-                <div className="text-center py-5"><Spinner color="primary" /></div>
+                <div className="text-center py-5">
+                  <i
+                    className="tim-icons icon-refresh-02"
+                    style={{
+                      fontSize: "2rem",
+                      color: "#f59e0b",
+                      animation: "budgetSpin 0.9s linear infinite",
+                      display: "inline-block",
+                    }}
+                  />
+                </div>
               ) : expenses.length === 0 ? (
-                <div className="text-center py-5" style={{ background: "linear-gradient(135deg, rgba(52,211,153,0.06), rgba(96,165,250,0.04))", borderRadius: "12px", border: "1px dashed rgba(96,165,250,0.3)" }}>
-                  <i className="tim-icons icon-money-coins" style={{ fontSize: "3rem", color: "#34D399", opacity: 0.7 }} />
-                  <h5 style={{ color: "#fff", marginTop: "1rem" }}>No expenses yet</h5>
-                  <p style={{ color: "#60A5FA" }}>
+                <div className="text-center py-5" style={{ background: "rgba(255,255,255,0.02)", borderRadius: 12, border: "1px dashed rgba(255,160,46,0.22)" }}>
+                  <i className="tim-icons icon-money-coins" style={{ fontSize: "3rem", color: "rgba(255,160,46,0.35)" }} />
+                  <h5 style={{ color: "rgba(255,255,255,0.75)", marginTop: "1rem" }}>No expenses yet</h5>
+                  <p style={{ color: "rgba(255,255,255,0.4)" }}>
                     {categories.length === 0 ? "Create a category first, then add expenses" : "Add your first expense to track spending"}
                   </p>
                   {categories.length > 0 && (
-                    <Button onClick={openAddExp} style={{ background: "linear-gradient(135deg, #34D399, #10B981)", border: "none" }}>
+                    <Button type="button" className="btn-amber-outline" onClick={openAddExp}>
                       <i className="tim-icons icon-simple-add mr-1" /> Add Expense
                     </Button>
                   )}
                 </div>
               ) : (
                 <>
-                  <Table responsive className="table-hover" style={{ color: "#fff" }}>
-                    <thead>
-                      <tr>
-                        <th style={{ color: "#60A5FA", borderColor: "rgba(255,255,255,0.1)", fontSize: "0.8rem" }}>Date</th>
-                        {selectedCategoryId === "all" && <th style={{ color: "#A78BFA", borderColor: "rgba(255,255,255,0.1)", fontSize: "0.8rem" }}>Category</th>}
-                        <th style={{ color: "#34D399", borderColor: "rgba(255,255,255,0.1)", fontSize: "0.8rem" }}>Title</th>
-                        <th style={{ color: "#FBBF24", borderColor: "rgba(255,255,255,0.1)", fontSize: "0.8rem" }}>Amount</th>
-                        <th style={{ color: "#9a9a9a", borderColor: "rgba(255,255,255,0.1)", fontSize: "0.8rem" }}>Method</th>
-                        <th style={{ color: "#9a9a9a", borderColor: "rgba(255,255,255,0.1)", fontSize: "0.8rem" }}>Notes</th>
-                        <th style={{ color: "#F87171", borderColor: "rgba(255,255,255,0.1)", fontSize: "0.8rem", width: 90 }}>Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {expenses.map(exp => (
-                        <tr key={exp._id}>
-                          <td style={{ borderColor: "rgba(255,255,255,0.07)", fontSize: "0.85rem" }}>
-                            {format(new Date(exp.date), "dd MMM yyyy")}
-                          </td>
-                          {selectedCategoryId === "all" && (
-                            <td style={{ borderColor: "rgba(255,255,255,0.07)" }}>
-                              {exp.category ? (
-                                <span style={{ color: exp.category.color || "#A78BFA", fontSize: "0.85rem", fontWeight: 500 }}>
-                                  <i className={`tim-icons ${exp.category.icon || "icon-tag"} mr-1`} style={{ fontSize: "0.7rem" }} />
-                                  {exp.category.name}
-                                </span>
-                              ) : <span style={{ color: "#9a9a9a" }}>—</span>}
-                            </td>
-                          )}
-                          <td style={{ borderColor: "rgba(255,255,255,0.07)", fontSize: "0.85rem" }}>{exp.title}</td>
-                          <td style={{ borderColor: "rgba(255,255,255,0.07)", color: "#FBBF24", fontWeight: 600, fontSize: "0.85rem" }}>
-                            ₹{Number(exp.amount || 0).toLocaleString("en-IN", { maximumFractionDigits: 2 })}
-                          </td>
-                          <td style={{ borderColor: "rgba(255,255,255,0.07)" }}>
-                            <Badge style={{
-                              background: exp.paymentMethod === "upi" ? "rgba(96,165,250,0.25)" : exp.paymentMethod === "card" ? "rgba(167,139,250,0.25)" : "rgba(52,211,153,0.25)",
-                              color: exp.paymentMethod === "upi" ? "#60A5FA" : exp.paymentMethod === "card" ? "#A78BFA" : "#34D399",
-                              fontSize: "0.7rem", textTransform: "uppercase"
-                            }}>
-                              {exp.paymentMethod}
-                            </Badge>
-                          </td>
-                          <td style={{ borderColor: "rgba(255,255,255,0.07)", color: "#9a9a9a", fontSize: "0.8rem", maxWidth: "150px" }}>
-                            <span title={exp.notes}>{exp.notes ? (exp.notes.length > 30 ? exp.notes.slice(0, 30) + "…" : exp.notes) : "—"}</span>
-                          </td>
-                          <td style={{ borderColor: "rgba(255,255,255,0.07)" }}>
-                            <Button size="sm" className="mr-1" onClick={() => openEditExp(exp)}
-                              style={{ background: "rgba(96,165,250,0.3)", border: "1px solid rgba(96,165,250,0.5)", color: "#60A5FA", padding: "3px 7px" }}>
-                              <i className="tim-icons icon-pencil" style={{ fontSize: "0.7rem" }} />
-                            </Button>
-                            <Button size="sm" onClick={() => setDeleteExpConfirm(exp)}
-                              style={{ background: "rgba(239,68,68,0.25)", border: "1px solid rgba(239,68,68,0.45)", color: "#FCA5A5", padding: "3px 7px" }}>
-                              <i className="tim-icons icon-trash-simple" style={{ fontSize: "0.7rem" }} />
-                            </Button>
-                          </td>
+                  <div className="budget-table-wrap">
+                    <Table responsive className="table-hover" style={{ color: "rgba(255,255,255,0.78)", marginBottom: 0 }}>
+                      <thead>
+                        <tr style={{ background: "rgba(255,160,46,0.06)" }}>
+                          {["Date", ...(selectedCategoryId === "all" ? ["Category"] : []), "Title", "Amount", "Method", "Notes", "Actions"].map((h) => (
+                            <th
+                              key={h}
+                              style={{
+                                color: "rgba(251,191,36,0.85)",
+                                borderColor: "rgba(255,255,255,0.07)",
+                                fontSize: "0.68rem",
+                                fontWeight: 700,
+                                textTransform: "uppercase",
+                                letterSpacing: "0.06em",
+                                ...(h === "Actions" ? { width: 90 } : {}),
+                              }}
+                            >
+                              {h}
+                            </th>
+                          ))}
                         </tr>
-                      ))}
-                    </tbody>
-                  </Table>
-
-                  {/* Pagination */}
-                  <div className="d-flex justify-content-between align-items-center mt-2">
-                    <span style={{ color: "#9a9a9a", fontSize: "0.8rem" }}>Page {page}</span>
+                      </thead>
+                      <tbody>
+                        {expenses.map((exp) => (
+                          <tr key={exp._id}>
+                            <td style={{ borderColor: "rgba(255,255,255,0.05)", fontSize: "0.83rem" }}>{format(new Date(exp.date), "dd MMM yyyy")}</td>
+                            {selectedCategoryId === "all" && (
+                              <td style={{ borderColor: "rgba(255,255,255,0.05)" }}>
+                                {exp.category ? (
+                                  <span style={{ color: "rgba(255,255,255,0.65)", fontSize: "0.83rem", fontWeight: 500 }}>
+                                    <i className={`tim-icons ${exp.category.icon || "icon-tag"} mr-1`} style={{ fontSize: "0.7rem", color: "rgba(251,191,36,0.75)" }} />
+                                    {exp.category.name}
+                                  </span>
+                                ) : (
+                                  <span style={{ color: "rgba(255,255,255,0.25)" }}>—</span>
+                                )}
+                              </td>
+                            )}
+                            <td style={{ borderColor: "rgba(255,255,255,0.05)", fontSize: "0.83rem" }}>{exp.title}</td>
+                            <td style={{ borderColor: "rgba(255,255,255,0.05)", color: "#fbbf24", fontWeight: 700, fontSize: "0.83rem" }}>
+                              ₹{Number(exp.amount || 0).toLocaleString("en-IN", { maximumFractionDigits: 2 })}
+                            </td>
+                            <td style={{ borderColor: "rgba(255,255,255,0.05)" }}>
+                              <Badge
+                                style={{
+                                  background: "rgba(255,160,46,0.1)",
+                                  border: "1px solid rgba(255,160,46,0.25)",
+                                  color: "rgba(251,191,36,0.9)",
+                                  fontSize: "0.68rem",
+                                  textTransform: "uppercase",
+                                }}
+                              >
+                                {exp.paymentMethod}
+                              </Badge>
+                            </td>
+                            <td style={{ borderColor: "rgba(255,255,255,0.05)", color: "rgba(255,255,255,0.38)", fontSize: "0.78rem", maxWidth: "150px" }}>
+                              <span title={exp.notes}>{exp.notes ? (exp.notes.length > 30 ? exp.notes.slice(0, 30) + "…" : exp.notes) : "—"}</span>
+                            </td>
+                            <td style={{ borderColor: "rgba(255,255,255,0.05)" }}>
+                              <button
+                                type="button"
+                                onClick={() => openEditExp(exp)}
+                                title="Edit"
+                                style={{
+                                  background: "rgba(255,160,46,0.12)",
+                                  border: "1px solid rgba(255,160,46,0.3)",
+                                  borderRadius: 4,
+                                  color: "#fbbf24",
+                                  width: 28,
+                                  height: 28,
+                                  padding: 0,
+                                  cursor: "pointer",
+                                  display: "inline-flex",
+                                  alignItems: "center",
+                                  justifyContent: "center",
+                                  marginRight: 6,
+                                }}
+                              >
+                                <i className="tim-icons icon-pencil" style={{ fontSize: "0.65rem" }} />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setDeleteExpConfirm(exp)}
+                                title="Delete"
+                                style={{
+                                  background: "rgba(239,68,68,0.08)",
+                                  border: "1px solid rgba(239,68,68,0.22)",
+                                  borderRadius: 4,
+                                  color: "#f87171",
+                                  width: 28,
+                                  height: 28,
+                                  padding: 0,
+                                  cursor: "pointer",
+                                  display: "inline-flex",
+                                  alignItems: "center",
+                                  justifyContent: "center",
+                                }}
+                              >
+                                <i className="tim-icons icon-trash-simple" style={{ fontSize: "0.65rem" }} />
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </Table>
+                  </div>
+                  <div className="d-flex justify-content-between align-items-center mt-3">
+                    <span style={{ color: "rgba(255,255,255,0.45)", fontSize: "0.78rem" }}>Page {page}</span>
                     <div>
-                      <Button size="sm" disabled={page <= 1} onClick={() => setPage(p => p - 1)}
-                        style={{ background: "rgba(96,165,250,0.2)", border: "1px solid rgba(96,165,250,0.4)", color: "#60A5FA", marginRight: "8px" }}>
+                      <button
+                        type="button"
+                        disabled={page <= 1}
+                        onClick={() => setPage((p) => p - 1)}
+                        style={{
+                          background: "transparent",
+                          border: "1px solid rgba(255,255,255,0.12)",
+                          borderRadius: 8,
+                          padding: "6px 12px",
+                          color: page <= 1 ? "rgba(255,255,255,0.25)" : "rgba(255,255,255,0.65)",
+                          cursor: page <= 1 ? "not-allowed" : "pointer",
+                          marginRight: 8,
+                        }}
+                      >
                         ‹ Prev
-                      </Button>
-                      <Button size="sm" disabled={expenses.length < pageSize} onClick={() => setPage(p => p + 1)}
-                        style={{ background: "rgba(96,165,250,0.2)", border: "1px solid rgba(96,165,250,0.4)", color: "#60A5FA" }}>
+                      </button>
+                      <button
+                        type="button"
+                        disabled={expenses.length < pageSize}
+                        onClick={() => setPage((p) => p + 1)}
+                        style={{
+                          background: "transparent",
+                          border: "1px solid rgba(255,255,255,0.12)",
+                          borderRadius: 8,
+                          padding: "6px 12px",
+                          color: expenses.length < pageSize ? "rgba(255,255,255,0.25)" : "rgba(255,255,255,0.65)",
+                          cursor: expenses.length < pageSize ? "not-allowed" : "pointer",
+                        }}
+                      >
                         Next ›
-                      </Button>
+                      </button>
                     </div>
                   </div>
                 </>
@@ -687,23 +659,27 @@ function Budget() {
       </Row>
 
       {/* ── Category Modal ── */}
-      <Modal isOpen={catModalOpen} toggle={() => setCatModalOpen(false)} style={{ maxWidth: "480px" }}>
-        <ModalHeader toggle={() => setCatModalOpen(false)} style={{ background: "linear-gradient(135deg, #1e1e2d, #2d2b42)", color: "#fff", borderBottom: "1px solid rgba(167,139,250,0.3)" }}>
-          <span style={{ color: "#A78BFA" }}>{editCatId ? "Edit Category" : "New Budget Category"}</span>
+      <Modal isOpen={catModalOpen} toggle={() => setCatModalOpen(false)} style={{ maxWidth: "480px" }} contentClassName="bg-dark border-0">
+        <ModalHeader toggle={() => setCatModalOpen(false)} style={modalHeaderStyle}>
+          <span style={{ color: "#fbbf24", fontWeight: 700 }}>{editCatId ? "Edit Category" : "New Budget Category"}</span>
         </ModalHeader>
         <Form onSubmit={handleCatSubmit}>
           <ModalBody style={modalBodyStyle}>
-            {error && <Alert color="danger" style={{ background: "rgba(239,68,68,0.15)", color: "#FCA5A5" }}>{error}</Alert>}
+            {error && (
+              <Alert color="danger" style={{ background: "rgba(239,68,68,0.12)", border: "1px solid rgba(239,68,68,0.35)", color: "#FCA5A5", borderRadius: 10 }}>
+                {error}
+              </Alert>
+            )}
             <FormGroup>
-              <Label style={{ color: "#A78BFA" }}>Category Name *</Label>
+              <Label style={labelStyle}>Category Name *</Label>
               <Input value={catForm.name} onChange={e => setCatForm(f => ({ ...f, name: e.target.value }))} placeholder="e.g. Trip Expenses, Wedding Budget" required style={inputStyle} />
             </FormGroup>
             <FormGroup>
-              <Label style={{ color: "#60A5FA" }}>Description (optional)</Label>
+              <Label style={labelStyle}>Description (optional)</Label>
               <Input type="textarea" rows={2} value={catForm.description} onChange={e => setCatForm(f => ({ ...f, description: e.target.value }))} placeholder="Short description" style={inputStyle} />
             </FormGroup>
             <FormGroup>
-              <Label style={{ color: "#FBBF24" }}>Budget Limit ₹ (optional)</Label>
+              <Label style={labelStyle}>Budget Limit ₹ (optional)</Label>
               <Input type="number" min="0" step="0.01" value={catForm.budgetLimit} onChange={e => setCatForm(f => ({ ...f, budgetLimit: e.target.value }))} placeholder="0 = no limit" style={inputStyle} />
             </FormGroup>
             <FormGroup>
@@ -737,7 +713,7 @@ function Budget() {
               </div>
             </FormGroup>
             <FormGroup>
-              <Label style={{ color: "#34D399" }}>Color</Label>
+              <Label style={labelStyle}>Color</Label>
               <div className="d-flex flex-wrap" style={{ gap: "8px" }}>
                 {COLORS.map(c => (
                   <div
@@ -754,118 +730,115 @@ function Budget() {
               </div>
             </FormGroup>
             <FormGroup>
-              <Label style={{ color: "#F87171" }}>Icon</Label>
+              <Label style={labelStyle}>Icon</Label>
               <div className="d-flex flex-wrap" style={{ gap: "8px" }}>
                 {ICONS.map(ic => (
                   <div
                     key={ic.value}
                     onClick={() => setCatForm(f => ({ ...f, icon: ic.value }))}
                     title={ic.label}
-                    style={{
-                      width: "36px", height: "36px", borderRadius: "8px", cursor: "pointer",
-                      display: "flex", alignItems: "center", justifyContent: "center",
-                      background: catForm.icon === ic.value ? `${catForm.color}40` : "rgba(255,255,255,0.07)",
-                      border: catForm.icon === ic.value ? `1px solid ${catForm.color}` : "1px solid rgba(255,255,255,0.1)",
-                      transition: "all 0.2s"
-                    }}
+                    style={{ width: 36, height: 36, borderRadius: 8, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", background: catForm.icon === ic.value ? "rgba(255,255,255,0.12)" : "rgba(255,255,255,0.06)", border: catForm.icon === ic.value ? "1px solid rgba(255,255,255,0.25)" : "1px solid rgba(255,255,255,0.08)", transition: "all 0.2s" }}
                   >
-                    <i className={`tim-icons ${ic.value}`} style={{ color: catForm.icon === ic.value ? catForm.color : "#9a9a9a", fontSize: "1rem" }} />
+                    <i className={`tim-icons ${ic.value}`} style={{ color: catForm.icon === ic.value ? "rgba(255,255,255,0.85)" : "rgba(255,255,255,0.4)", fontSize: "1rem" }} />
                   </div>
                 ))}
               </div>
             </FormGroup>
           </ModalBody>
           <ModalFooter style={modalFooterStyle}>
-            <Button onClick={() => setCatModalOpen(false)} style={{ background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.2)", color: "#9a9a9a" }}>Cancel</Button>
-            <Button type="submit" disabled={catSaving} style={{ background: "linear-gradient(135deg, #A78BFA, #7C3AED)", border: "none", color: "#fff" }}>
-              {catSaving ? <><Spinner size="sm" className="mr-1" />Saving...</> : (editCatId ? "Update" : "Create")}
+            <Button type="button" className="btn-cancel-outline" onClick={() => setCatModalOpen(false)}>
+              Cancel
+            </Button>
+            <Button type="submit" className="btn-amber-outline" disabled={catSaving}>
+              {catSaving ? (
+                <>
+                  <Spinner size="sm" className="mr-2" style={{ color: "#ffb347" }} />
+                  Saving…
+                </>
+              ) : editCatId ? (
+                "Update"
+              ) : (
+                "Create"
+              )}
             </Button>
           </ModalFooter>
         </Form>
       </Modal>
 
-      {/* ── Expense Modal ── */}
-      <Modal isOpen={expModalOpen} toggle={() => setExpModalOpen(false)} style={{ maxWidth: "500px" }}>
-        <ModalHeader toggle={() => setExpModalOpen(false)} style={{ background: "linear-gradient(135deg, #1e1e2d, #2d2b42)", color: "#fff", borderBottom: "1px solid rgba(52,211,153,0.3)" }}>
-          <span style={{ color: "#34D399" }}>{editExpId ? "Edit Expense" : "Add Expense"}</span>
+      <Modal isOpen={expModalOpen} toggle={() => setExpModalOpen(false)} style={{ maxWidth: "500px" }} contentClassName="bg-dark border-0">
+        <ModalHeader toggle={() => setExpModalOpen(false)} style={modalHeaderStyle}>
+          <span style={{ color: "#fbbf24", fontWeight: 700 }}>{editExpId ? "Edit Expense" : "Add Expense"}</span>
         </ModalHeader>
         <Form onSubmit={handleExpSubmit}>
           <ModalBody style={modalBodyStyle}>
-            {error && <Alert color="danger" style={{ background: "rgba(239,68,68,0.15)", color: "#FCA5A5" }}>{error}</Alert>}
-            <FormGroup>
-              <Label style={{ color: "#A78BFA" }}>Category *</Label>
-              <Input type="select" value={expForm.categoryId} onChange={e => setExpForm(f => ({ ...f, categoryId: e.target.value }))} required style={inputStyle}>
-                <option value="">Select category</option>
-                {categories.map(c => <option key={c._id} value={c._id}>{c.name}</option>)}
-              </Input>
-            </FormGroup>
-            <FormGroup>
-              <Label style={{ color: "#34D399" }}>Title *</Label>
-              <Input value={expForm.title} onChange={e => setExpForm(f => ({ ...f, title: e.target.value }))} placeholder="e.g. Hotel booking, Flowers, Catering" required style={inputStyle} />
-            </FormGroup>
+            {error && (
+              <Alert color="danger" style={{ background: "rgba(239,68,68,0.12)", border: "1px solid rgba(239,68,68,0.35)", color: "#FCA5A5", borderRadius: 10 }}>
+                {error}
+              </Alert>
+            )}
+            <FormGroup><Label style={labelStyle}>Category *</Label><Input type="select" value={expForm.categoryId} onChange={e => setExpForm(f=>({...f,categoryId:e.target.value}))} required style={inputStyle}><option value="">Select category</option>{categories.map(c=><option key={c._id} value={c._id}>{c.name}</option>)}</Input></FormGroup>
+            <FormGroup><Label style={labelStyle}>Title *</Label><Input value={expForm.title} onChange={e => setExpForm(f=>({...f,title:e.target.value}))} placeholder="e.g. Hotel booking" required style={inputStyle} /></FormGroup>
             <Row>
-              <Col sm="6">
-                <FormGroup>
-                  <Label style={{ color: "#FBBF24" }}>Amount (₹) *</Label>
-                  <Input type="number" min="0" step="0.01" value={expForm.amount} onChange={e => setExpForm(f => ({ ...f, amount: e.target.value }))} required style={inputStyle} />
-                </FormGroup>
-              </Col>
-              <Col sm="6">
-                <FormGroup>
-                  <Label style={{ color: "#60A5FA" }}>Date *</Label>
-                  <Input type="date" value={expForm.date} onChange={e => setExpForm(f => ({ ...f, date: e.target.value }))} required style={inputStyle} />
-                </FormGroup>
-              </Col>
+              <Col sm="6"><FormGroup><Label style={labelStyle}>Amount (₹) *</Label><Input type="number" min="0" step="0.01" value={expForm.amount} onChange={e => setExpForm(f=>({...f,amount:e.target.value}))} required style={inputStyle} /></FormGroup></Col>
+              <Col sm="6"><FormGroup><Label style={labelStyle}>Date *</Label><Input type="date" value={expForm.date} onChange={e => setExpForm(f=>({...f,date:e.target.value}))} required style={inputStyle} /></FormGroup></Col>
             </Row>
-            <FormGroup>
-              <Label style={{ color: "#9a9a9a" }}>Payment Method</Label>
-              <Input type="select" value={expForm.paymentMethod} onChange={e => setExpForm(f => ({ ...f, paymentMethod: e.target.value }))} style={inputStyle}>
-                {PAYMENT_METHODS.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
-              </Input>
-            </FormGroup>
-            <FormGroup>
-              <Label style={{ color: "#9a9a9a" }}>Notes (optional)</Label>
-              <Input type="textarea" rows={2} value={expForm.notes} onChange={e => setExpForm(f => ({ ...f, notes: e.target.value }))} placeholder="Optional notes" style={inputStyle} />
-            </FormGroup>
+            <FormGroup><Label style={labelStyle}>Payment Method</Label><Input type="select" value={expForm.paymentMethod} onChange={e => setExpForm(f=>({...f,paymentMethod:e.target.value}))} style={inputStyle}>{PAYMENT_METHODS.map(m=><option key={m.value} value={m.value}>{m.label}</option>)}</Input></FormGroup>
+            <FormGroup><Label style={labelStyle}>Notes (optional)</Label><Input type="textarea" rows={2} value={expForm.notes} onChange={e => setExpForm(f=>({...f,notes:e.target.value}))} placeholder="Optional notes" style={inputStyle} /></FormGroup>
           </ModalBody>
           <ModalFooter style={modalFooterStyle}>
-            <Button onClick={() => setExpModalOpen(false)} style={{ background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.2)", color: "#9a9a9a" }}>Cancel</Button>
-            <Button type="submit" disabled={expSaving} style={{ background: "linear-gradient(135deg, #34D399, #10B981)", border: "none", color: "#fff" }}>
-              {expSaving ? <><Spinner size="sm" className="mr-1" />Saving...</> : (editExpId ? "Update" : "Add")}
+            <Button type="button" className="btn-cancel-outline" onClick={() => setExpModalOpen(false)}>
+              Cancel
+            </Button>
+            <Button type="submit" className="btn-amber-outline" disabled={expSaving}>
+              {expSaving ? (
+                <>
+                  <Spinner size="sm" className="mr-2" style={{ color: "#ffb347" }} />
+                  Saving…
+                </>
+              ) : editExpId ? (
+                "Update"
+              ) : (
+                "Add"
+              )}
             </Button>
           </ModalFooter>
         </Form>
       </Modal>
 
-      {/* ── Delete Category Confirm ── */}
-      <Modal isOpen={!!deleteCatConfirm} toggle={() => setDeleteCatConfirm(null)}>
-        <ModalHeader toggle={() => setDeleteCatConfirm(null)} style={{ background: "#1e1e2d", color: "#fff" }}>
+      <Modal isOpen={!!deleteCatConfirm} toggle={() => setDeleteCatConfirm(null)} contentClassName="bg-dark border-0">
+        <ModalHeader toggle={() => setDeleteCatConfirm(null)} style={modalHeaderStyle}>
           Delete Category
         </ModalHeader>
         <ModalBody style={modalBodyStyle}>
-          <p>Are you sure you want to delete <strong style={{ color: "#A78BFA" }}>{deleteCatConfirm?.name}</strong>?</p>
-          <p style={{ color: "#F87171", fontSize: "0.9rem" }}>
-            <i className="tim-icons icon-alert-circle-exc mr-1" />
-            This will also delete <strong>all expenses</strong> in this category. This action cannot be undone.
+          <p>Are you sure you want to delete <strong style={{ color: "rgba(255,255,255,0.7)" }}>{deleteCatConfirm?.name}</strong>?</p>
+          <p style={{ color: "rgba(255,255,255,0.45)", fontSize: "0.9rem" }}>
+            <i className="tim-icons icon-alert-circle-exc mr-1" />This will also delete <strong>all expenses</strong> in this category. This action cannot be undone.
           </p>
         </ModalBody>
         <ModalFooter style={modalFooterStyle}>
-          <Button onClick={() => setDeleteCatConfirm(null)} style={{ background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.2)", color: "#9a9a9a" }}>Cancel</Button>
-          <Button onClick={handleDeleteCat} style={{ background: "linear-gradient(135deg, #F87171, #EF4444)", border: "none", color: "#fff" }}>Delete</Button>
+          <Button type="button" className="btn-cancel-outline" onClick={() => setDeleteCatConfirm(null)}>
+            Cancel
+          </Button>
+          <Button type="button" color="danger" onClick={handleDeleteCat}>
+            Delete
+          </Button>
         </ModalFooter>
       </Modal>
 
-      {/* ── Delete Expense Confirm ── */}
-      <Modal isOpen={!!deleteExpConfirm} toggle={() => setDeleteExpConfirm(null)}>
-        <ModalHeader toggle={() => setDeleteExpConfirm(null)} style={{ background: "#1e1e2d", color: "#fff" }}>
+      <Modal isOpen={!!deleteExpConfirm} toggle={() => setDeleteExpConfirm(null)} contentClassName="bg-dark border-0">
+        <ModalHeader toggle={() => setDeleteExpConfirm(null)} style={modalHeaderStyle}>
           Delete Expense
         </ModalHeader>
         <ModalBody style={modalBodyStyle}>
-          Are you sure you want to delete <strong style={{ color: "#34D399" }}>{deleteExpConfirm?.title}</strong> (₹{deleteExpConfirm?.amount?.toLocaleString?.()})?
+          Are you sure you want to delete <strong style={{ color: "rgba(255,255,255,0.7)" }}>{deleteExpConfirm?.title}</strong> (₹{deleteExpConfirm?.amount?.toLocaleString?.()})?
         </ModalBody>
         <ModalFooter style={modalFooterStyle}>
-          <Button onClick={() => setDeleteExpConfirm(null)} style={{ background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.2)", color: "#9a9a9a" }}>Cancel</Button>
-          <Button onClick={handleDeleteExp} style={{ background: "linear-gradient(135deg, #F87171, #EF4444)", border: "none", color: "#fff" }}>Delete</Button>
+          <Button type="button" className="btn-cancel-outline" onClick={() => setDeleteExpConfirm(null)}>
+            Cancel
+          </Button>
+          <Button type="button" color="danger" onClick={handleDeleteExp}>
+            Delete
+          </Button>
         </ModalFooter>
       </Modal>
     </div>

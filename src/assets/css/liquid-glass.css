@@ -1,0 +1,548 @@
+/* =============================================================
+   MONOCHROME DARK — 2-Color System
+   #0a0a0a  pure black background
+   #1c1c1e  dark grey elevated surface  (iOS-style)
+   ============================================================= */
+
+/* ── 1. TOKENS ───────────────────────────────────────────── */
+:root {
+  --bg:          #0a0a0a;
+  --surface:     #1c1c1e;
+  --surface-2:   #252527;
+  --surface-3:   #2e2e30;
+  --border:      rgba(255, 255, 255, 0.07);
+  --border-2:    rgba(255, 255, 255, 0.12);
+  --shine:       rgba(255, 255, 255, 0.08);
+  --text:        rgba(255, 255, 255, 0.92);
+  --text-2:      rgba(255, 255, 255, 0.55);
+  --text-3:      rgba(255, 255, 255, 0.30);
+  --radius:      14px;
+  --radius-sm:   9px;
+  --blur:        blur(28px);
+  --shadow:      0 8px 32px rgba(0,0,0,0.55), 0 2px 6px rgba(0,0,0,0.4);
+  --shadow-sm:   0 2px 12px rgba(0,0,0,0.4), 0 1px 3px rgba(0,0,0,0.3);
+}
+
+/* ── 2. BASE ─────────────────────────────────────────────── */
+html, body {
+  background-color: var(--bg) !important;
+  color: var(--text) !important;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Inter", sans-serif !important;
+}
+
+/* Remove all previous pseudo-element backgrounds */
+body::before,
+body::after {
+  display: none !important;
+}
+
+/* ── 3. LAYOUT ───────────────────────────────────────────── */
+.wrapper    { background: var(--bg) !important; position: relative; z-index: 1; }
+.main-panel { background: var(--bg) !important; position: relative; z-index: 2; }
+.content    { position: relative; z-index: 2; }
+
+/*
+ * Admin routes render views inside <Routes>, so .content is NOT a direct child of .main-panel.
+ * Theme only set padding on .main-panel > .content — nested pages lost the top inset and sit
+ * under the absolutely positioned navbar. Apply padding to any .content inside the panel.
+ */
+.main-panel .content {
+  padding: 78px 30px 30px 30px !important;
+  box-sizing: border-box !important;
+}
+
+@media screen and (max-width: 991.98px) {
+  .main-panel .content {
+    padding-left: 15px !important;
+    padding-right: 15px !important;
+    padding-bottom: 24px !important;
+  }
+}
+
+/*
+ * Black Dashboard uses a fixed sidebar + full-width main panel with padding-left on .content.
+ * This theme raised sidebar z-index to 1050, so the panel visually sat *under* the sidebar and
+ * looked like the dashboard was hidden behind it. Fix: offset the main panel on desktop so its
+ * box starts after the sidebar; keep high z-index only for the mobile drawer.
+ */
+.sidebar {
+  position: fixed !important;
+  pointer-events: auto !important;
+}
+.sidebar * { pointer-events: auto !important; }
+
+@media screen and (max-width: 991.98px) {
+  .sidebar {
+    z-index: 1050 !important;
+  }
+}
+
+@media screen and (min-width: 992px) {
+  /* Flush sidebar to the viewport; match main-panel offset (Black Dashboard used floating margins). */
+  .sidebar {
+    z-index: 1009 !important;
+    margin-top: 0 !important;
+    margin-left: 0 !important;
+    height: 100vh !important;
+    width: 280px !important;
+    max-width: 280px !important;
+    border-radius: 0 !important;
+    box-sizing: border-box !important;
+  }
+  .sidebar .sidebar-wrapper {
+    height: 100% !important;
+    min-height: 0 !important;
+  }
+  .sidebar-mini .sidebar {
+    width: 80px !important;
+    max-width: 80px !important;
+  }
+  .sidebar-mini .sidebar:hover {
+    width: 260px !important;
+    max-width: 260px !important;
+  }
+  .wrapper .main-panel {
+    margin-left: 280px !important;
+    width: calc(100% - 280px) !important;
+    max-width: calc(100% - 280px) !important;
+    float: none !important;
+    box-sizing: border-box !important;
+  }
+  /* Match Creative Tim sidebar-mini inset */
+  .sidebar-mini .main-panel {
+    margin-left: 130px !important;
+    width: calc(100% - 130px) !important;
+    max-width: calc(100% - 130px) !important;
+  }
+}
+
+/* ── 4. CARDS ────────────────────────────────────────────── */
+.card {
+  background: var(--surface) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: var(--radius) !important;
+  box-shadow: var(--shadow-sm), inset 0 1px 0 var(--shine) !important;
+  color: var(--text) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease !important;
+}
+
+.card:hover {
+  border-color: var(--border-2) !important;
+  box-shadow: var(--shadow), inset 0 1px 0 rgba(255,255,255,0.11) !important;
+}
+
+.card-header {
+  background: rgba(255,255,255,0.025) !important;
+  border-bottom: 1px solid var(--border) !important;
+  border-radius: var(--radius) var(--radius) 0 0 !important;
+  padding: 0.9rem 1.2rem !important;
+}
+
+.card-body   { background: transparent !important; }
+.card-footer { background: rgba(255,255,255,0.02) !important; border-top: 1px solid var(--border) !important; }
+.card-title  { color: var(--text) !important; }
+.card-category, .card-subcategory { color: var(--text-2) !important; }
+
+/* ── 5. SIDEBAR ──────────────────────────────────────────── */
+.sidebar {
+  background: #111113 !important;
+  border-right: 1px solid var(--border) !important;
+  box-shadow: 2px 0 20px rgba(0,0,0,0.6) !important;
+}
+.sidebar-wrapper {
+  background: transparent !important;
+  max-height: none !important;
+}
+.sidebar .logo {
+  border-bottom: 1px solid var(--border) !important;
+  background: transparent !important;
+}
+.sidebar .logo .simple-text { color: var(--text) !important; }
+
+.sidebar .nav li {
+  list-style: none !important;
+  margin-bottom: 2px !important;
+}
+.sidebar .nav li a,
+.sidebar .nav li .nav-link {
+  display: flex !important;
+  align-items: center !important;
+  gap: 11px !important;
+  color: var(--text-2) !important;
+  border-radius: 9px !important;
+  border: 1px solid transparent !important;
+  padding: 9px 13px !important;
+  margin: 0 8px !important;
+  text-decoration: none !important;
+  cursor: pointer !important;
+  transition: all 0.18s ease !important;
+  position: relative !important;
+  z-index: 1 !important;
+}
+.sidebar .nav li a i,
+.sidebar .nav li .nav-link i {
+  font-size: 0.95rem !important; width: 20px !important; text-align: center !important; flex-shrink: 0 !important;
+}
+.sidebar .nav li a p,
+.sidebar .nav li .nav-link p {
+  margin: 0 !important; font-size: 0.86rem !important; font-weight: 400 !important;
+  white-space: nowrap !important; overflow: hidden !important; text-overflow: ellipsis !important; color: inherit !important;
+}
+.sidebar .nav li a:hover,
+.sidebar .nav li .nav-link:hover {
+  background: var(--surface-2) !important;
+  border-color: var(--border) !important;
+  color: var(--text) !important;
+}
+.sidebar .nav li a.active,
+.sidebar .nav li.active > a,
+.sidebar .nav li.active > .nav-link {
+  background: var(--surface-3) !important;
+  border-color: var(--border-2) !important;
+  box-shadow: inset 0 1px 0 var(--shine) !important;
+  color: var(--text) !important;
+  font-weight: 600 !important;
+}
+.sidebar .nav li a.active i,
+.sidebar .nav li.active > a i { color: var(--text) !important; }
+.sidebar .nav li a.active p,
+.sidebar .nav li.active > a p { font-weight: 600 !important; color: var(--text) !important; }
+
+/* ── 6. NAVBAR ───────────────────────────────────────────── */
+.navbar,
+.navbar-absolute {
+  background: rgba(10,10,10,0.85) !important;
+  backdrop-filter: var(--blur) !important;
+  -webkit-backdrop-filter: var(--blur) !important;
+  border-bottom: 1px solid var(--border) !important;
+  box-shadow: 0 1px 0 var(--shine) !important;
+}
+.navbar .navbar-brand,
+.navbar .navbar-brand:hover { color: var(--text) !important; font-weight: 600; }
+.navbar .nav-link,
+.navbar .btn-link { color: var(--text-2) !important; }
+.navbar .nav-link:hover,
+.navbar .btn-link:hover { color: var(--text) !important; }
+
+.dropdown-menu,
+.dropdown-navbar {
+  background: #1a1a1c !important;
+  border: 1px solid var(--border-2) !important;
+  border-radius: var(--radius-sm) !important;
+  box-shadow: 0 16px 48px rgba(0,0,0,0.7), inset 0 1px 0 var(--shine) !important;
+}
+.dropdown-item,
+.dropdown-navbar .nav-item { color: var(--text-2) !important; }
+.dropdown-item:hover,
+.dropdown-navbar .nav-item:hover { background: var(--surface-2) !important; color: var(--text) !important; }
+.dropdown-divider { border-color: var(--border) !important; }
+
+/* ── 7. FORM CONTROLS ────────────────────────────────────── */
+.form-control,
+input[type="text"],
+input[type="email"],
+input[type="password"],
+input[type="number"],
+input[type="date"],
+input[type="search"],
+textarea,
+select {
+  background: var(--surface-2) !important;
+  border: 1px solid var(--border-2) !important;
+  border-radius: var(--radius-sm) !important;
+  color: var(--text) !important;
+  box-shadow: inset 0 1px 2px rgba(0,0,0,0.35) !important;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease !important;
+  backdrop-filter: none !important;
+}
+.form-control:focus,
+input:focus,
+textarea:focus,
+select:focus {
+  background: var(--surface-3) !important;
+  border-color: rgba(255,255,255,0.25) !important;
+  box-shadow: 0 0 0 3px rgba(255,255,255,0.06) !important;
+  outline: none !important;
+  color: var(--text) !important;
+}
+.form-control::placeholder,
+input::placeholder,
+textarea::placeholder { color: var(--text-3) !important; }
+.form-control option,
+select option { background: #1a1a1c !important; color: var(--text) !important; }
+
+label, .form-label {
+  color: var(--text-2) !important;
+  font-size: 0.81rem;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+}
+
+.input-group-text {
+  background: var(--surface-2) !important;
+  border: 1px solid var(--border-2) !important;
+  color: var(--text-2) !important;
+}
+
+/* ── 8. BUTTONS ──────────────────────────────────────────── */
+.btn {
+  border-radius: var(--radius-sm) !important;
+  font-weight: 500 !important;
+  transition: all 0.18s ease !important;
+  box-shadow: inset 0 1px 0 var(--shine) !important;
+}
+
+/* Primary */
+.btn-primary {
+  background: var(--surface-3) !important;
+  border: 1px solid var(--border-2) !important;
+  color: var(--text) !important;
+}
+.btn-primary:hover, .btn-primary:focus {
+  background: #3a3a3c !important;
+  border-color: rgba(255,255,255,0.2) !important;
+  color: #fff !important;
+  transform: translateY(-1px);
+}
+
+/* All colour variants → same dark grey glass */
+.btn-secondary, .btn-default,
+.btn-success, .btn-danger,
+.btn-warning, .btn-info {
+  background: var(--surface-2) !important;
+  border: 1px solid var(--border-2) !important;
+  color: var(--text-2) !important;
+  box-shadow: inset 0 1px 0 var(--shine) !important;
+}
+.btn-secondary:hover, .btn-default:hover,
+.btn-success:hover, .btn-danger:hover,
+.btn-warning:hover, .btn-info:hover {
+  background: var(--surface-3) !important;
+  border-color: rgba(255,255,255,0.18) !important;
+  color: var(--text) !important;
+  transform: translateY(-1px);
+}
+
+.btn-link {
+  color: var(--text-2) !important;
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+.btn-link:hover { color: var(--text) !important; }
+
+/* ── 9. TABLES ───────────────────────────────────────────── */
+.table { color: var(--text) !important; border-color: var(--border) !important; }
+
+.table thead th {
+  background: rgba(255,255,255,0.03) !important;
+  color: var(--text-2) !important;
+  border-bottom: 1px solid var(--border-2) !important;
+  border-top: none !important;
+  font-size: 0.70rem !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.08em !important;
+  text-transform: uppercase !important;
+  padding: 10px 12px !important;
+}
+
+.table tbody tr {
+  background: transparent !important;
+  border-bottom: 1px solid rgba(255,255,255,0.03) !important;
+  transition: background 0.15s ease !important;
+}
+.table tbody tr:hover { background: rgba(255,255,255,0.03) !important; }
+.table td {
+  border-color: rgba(255,255,255,0.03) !important;
+  color: var(--text-2) !important;
+  padding: 9px 12px !important;
+  vertical-align: middle !important;
+}
+.table tfoot td,
+.table tfoot th {
+  border-top: 1px solid var(--border-2) !important;
+  background: rgba(255,255,255,0.025) !important;
+  color: var(--text-2) !important;
+  font-weight: 600 !important;
+}
+
+/* ── 10. BADGES ──────────────────────────────────────────── */
+.badge {
+  font-weight: 600 !important;
+  letter-spacing: 0.04em !important;
+  border-radius: 6px !important;
+  padding: 3px 8px !important;
+  background: var(--surface-3) !important;
+  color: var(--text-2) !important;
+  border: 1px solid var(--border-2) !important;
+}
+
+/* Keep subtle tints only for status meaning */
+.badge-success { background: rgba(255,255,255,0.07) !important; color: rgba(255,255,255,0.75) !important; }
+.badge-danger  { background: rgba(255,255,255,0.04) !important; color: var(--text-2) !important; }
+.badge-warning { background: rgba(255,255,255,0.06) !important; color: var(--text-2) !important; }
+.badge-primary, .badge-info { background: var(--surface-3) !important; color: var(--text-2) !important; }
+.badge-secondary { background: var(--surface-2) !important; color: var(--text-3) !important; }
+
+/* ── 11. ALERTS ──────────────────────────────────────────── */
+.alert {
+  background: var(--surface-2) !important;
+  border: 1px solid var(--border-2) !important;
+  border-radius: var(--radius-sm) !important;
+  color: var(--text-2) !important;
+}
+.alert-danger  { border-left: 3px solid rgba(255,80,80,0.6)   !important; }
+.alert-success { border-left: 3px solid rgba(80,200,120,0.6)  !important; }
+.alert-warning { border-left: 3px solid rgba(220,160,40,0.6)  !important; }
+.alert-info    { border-left: 3px solid rgba(80,160,220,0.5)  !important; }
+
+/* ── 12. MODALS ──────────────────────────────────────────── */
+.modal-content {
+  background: #161618 !important;
+  border: 1px solid var(--border-2) !important;
+  border-radius: var(--radius) !important;
+  box-shadow: 0 32px 80px rgba(0,0,0,0.8), inset 0 1px 0 var(--shine) !important;
+  color: var(--text) !important;
+  backdrop-filter: none !important;
+}
+.modal-header { border-bottom: 1px solid var(--border) !important; background: transparent !important; }
+.modal-footer { border-top: 1px solid var(--border) !important; background: rgba(255,255,255,0.015) !important; }
+.modal-title  { color: var(--text) !important; }
+.modal-backdrop { background: rgba(0,0,0,0.75) !important; }
+
+/* ── 13. PAGINATION ──────────────────────────────────────── */
+.page-link {
+  background: var(--surface-2) !important;
+  border: 1px solid var(--border) !important;
+  color: var(--text-2) !important;
+}
+.page-link:hover { background: var(--surface-3) !important; border-color: var(--border-2) !important; color: var(--text) !important; }
+.page-item.active .page-link {
+  background: var(--surface-3) !important;
+  border-color: var(--border-2) !important;
+  color: var(--text) !important;
+  box-shadow: inset 0 1px 0 var(--shine) !important;
+}
+.page-item.disabled .page-link { background: var(--surface) !important; color: var(--text-3) !important; }
+
+/* ── 14. FOOTER ──────────────────────────────────────────── */
+footer, .footer {
+  background: #0d0d0d !important;
+  border-top: 1px solid var(--border) !important;
+  color: var(--text-3) !important;
+}
+footer a, .footer a { color: var(--text-3) !important; }
+footer a:hover, .footer a:hover { color: var(--text-2) !important; }
+
+/* ── 15. SCROLLBAR ───────────────────────────────────────── */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: rgba(255,255,255,0.01); }
+::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.18); }
+.ps .ps__rail-y, .ps .ps__rail-x { background: transparent !important; opacity: 1 !important; }
+.ps .ps__thumb-y, .ps .ps__thumb-x { background: rgba(255,255,255,0.1) !important; border-radius: 3px !important; }
+
+/* ── 16. AUTH / LOGIN ────────────────────────────────────── */
+.auth-page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg) !important;
+  position: relative;
+  z-index: 1;
+}
+.auth-page .content { width: 100%; }
+.auth-page .card {
+  background: var(--surface) !important;
+  border: 1px solid var(--border-2) !important;
+  border-radius: 20px !important;
+  box-shadow: 0 32px 80px rgba(0,0,0,0.7), inset 0 1px 0 var(--shine) !important;
+}
+.auth-page .card-header {
+  text-align: center;
+  padding: 2rem 1.5rem 1rem !important;
+  border-bottom: 1px solid var(--border) !important;
+  background: transparent !important;
+}
+.auth-page .card-title {
+  font-size: 1.7rem !important;
+  font-weight: 700 !important;
+  color: var(--text) !important;
+  margin-bottom: 4px !important;
+}
+.auth-page .card-category { color: var(--text-2) !important; font-size: 0.88rem !important; }
+
+/* ── 17. MISC ────────────────────────────────────────────── */
+h1,h2,h3,h4,h5,h6 { color: var(--text) !important; }
+p { color: var(--text-2) !important; }
+a { color: var(--text-2) !important; transition: color 0.2s ease; }
+a:hover { color: var(--text) !important; }
+hr { border-color: var(--border) !important; opacity: 1; }
+
+.progress { background: rgba(255,255,255,0.06) !important; border-radius: 8px !important; }
+.progress-bar { background: rgba(255,255,255,0.35) !important; border-radius: 8px !important; }
+
+.list-group-item {
+  background: var(--surface) !important;
+  border-color: var(--border) !important;
+  color: var(--text-2) !important;
+}
+.list-group-item:hover { background: var(--surface-2) !important; }
+
+.nav-tabs { border-bottom-color: var(--border) !important; }
+.nav-tabs .nav-link { color: var(--text-2) !important; border-color: transparent !important; }
+.nav-tabs .nav-link:hover { background: var(--surface-2) !important; color: var(--text) !important; }
+.nav-tabs .nav-link.active {
+  background: var(--surface-3) !important;
+  border-color: var(--border-2) var(--border-2) transparent !important;
+  color: var(--text) !important;
+}
+
+.close, .btn-close { color: var(--text-2) !important; opacity: 0.6 !important; }
+.close:hover, .btn-close:hover { opacity: 1 !important; color: var(--text) !important; }
+
+.custom-select {
+  background-color: var(--surface-2) !important;
+  border-color: var(--border-2) !important;
+  color: var(--text) !important;
+}
+
+/* ── 18. OVERRIDE INLINE COLOR LEAKAGE ──────────────────── */
+/* Force all inline-styled cards to our surface color */
+.card[style*="background"] {
+  background: var(--surface) !important;
+  border-color: var(--border) !important;
+  box-shadow: var(--shadow-sm), inset 0 1px 0 var(--shine) !important;
+}
+
+/* Tame glowing colored box-shadows on inline-styled elements */
+.card[style*="boxShadow"],
+.card[style*="box-shadow"] {
+  box-shadow: var(--shadow-sm), inset 0 1px 0 var(--shine) !important;
+}
+
+/* Override inline background colors on div pill/badge elements inside cards */
+.content div[style*="background: linear-gradient"],
+.content div[style*="background:linear-gradient"] {
+  background: var(--surface-2) !important;
+  border-color: var(--border-2) !important;
+  box-shadow: none !important;
+}
+
+/* ── 19. SELECT OPTION DROPDOWN ──────────────────────────── */
+select option {
+  background-color: #1c1c1e !important;
+  color: rgba(255,255,255,0.85) !important;
+}
+select option:checked,
+select option:hover {
+  background-color: #2e2e30 !important;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}

@@ -704,15 +704,8 @@ function Transactions() {
             borderTop: '1px solid rgba(255,255,255,0.1)'
           }}>
             <Button 
-              color="secondary" 
+              className="btn-cancel-outline"
               onClick={closeModal}
-              style={{
-                backgroundColor: 'rgba(255,255,255,0.1)',
-                border: '1px solid rgba(255,255,255,0.2)',
-                color: '#fff',
-                borderRadius: '8px',
-                padding: '0.5rem 1.5rem'
-              }}
             >
               <i className="tim-icons icon-simple-remove mr-2"></i>
               Cancel

@@ -27,6 +27,8 @@ const HouseSavings = lazy(() => import("views/HouseSavings.js"));
 const Budget = lazy(() => import("views/Budget.js"));
 const GoldSavings = lazy(() => import("views/GoldSavings.js"));
 const GoldSavingsForm = lazy(() => import("views/GoldSavingsForm.js"));
+const Expenses = lazy(() => import("views/Expenses.js"));
+const ExpenseForm = lazy(() => import("views/ExpenseForm.js"));
 
 var routes = [
   {
@@ -81,6 +83,13 @@ var routes = [
     layout: "/admin",
   },
   {
+    path: "/expenses",
+    name: "Expenses",
+    icon: "tim-icons icon-notes",
+    component: Expenses,
+    layout: "/admin",
+  },
+  {
     path: "/roles-management",
     name: "Roles Management",
     icon: "tim-icons icon-lock-circle",
@@ -101,6 +110,22 @@ var routes = [
     name: "Edit Gold Savings",
     icon: "tim-icons icon-pencil",
     component: GoldSavingsForm,
+    layout: "/admin",
+    hidden: true,
+  },
+  {
+    path: "/expenses/add",
+    name: "Add Expense",
+    icon: "tim-icons icon-simple-add",
+    component: ExpenseForm,
+    layout: "/admin",
+    hidden: true,
+  },
+  {
+    path: "/expenses/edit/:id",
+    name: "Edit Expense",
+    icon: "tim-icons icon-pencil",
+    component: ExpenseForm,
     layout: "/admin",
     hidden: true,
   },

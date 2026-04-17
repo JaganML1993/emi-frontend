@@ -114,77 +114,29 @@ function Sidebar(props) {
   return (
     <BackgroundColorContext.Consumer>
       {({ color }) => (
-        <div className="sidebar" data={color} style={{
-          background: 'linear-gradient(135deg, rgba(0, 191, 255, 0.3) 0%, rgba(30, 144, 255, 0.25) 50%, #1e1e2d 100%)',
-          boxShadow: '0 8px 32px rgba(0, 191, 255, 0.3), 0 4px 16px rgba(30, 144, 255, 0.2)',
-          border: '1px solid rgba(0, 191, 255, 0.4)',
-          backdropFilter: 'blur(20px)'
-        }}>
-          <div className="sidebar-wrapper" ref={sidebarRef} style={{
-            background: 'transparent'
-          }}>
+        <div className="sidebar" data={color}>
+          <div className="sidebar-wrapper" ref={sidebarRef}>
             {logoImg !== null || logoText !== null ? (
-              <div className="logo" style={{
-                padding: '20px 15px',
-                borderBottom: '1px solid rgba(0, 191, 255, 0.4)',
-                marginBottom: '10px'
-              }}>
+              <div className="logo">
                 {logoImg}
                 {logoText}
               </div>
             ) : null}
-            <Nav style={{ padding: '0 10px' }}>
+            <Nav>
               {routes
                 .filter(route => !route.hidden)
                 .map((prop, key) => {
                   if (prop.redirect) return null;
                   const isActive = isCurrentRoute(prop.layout, prop.path);
                   return (
-                    <li
-                      key={key}
-                      style={{ marginBottom: '4px', listStyle: 'none' }}
-                    >
+                    <li key={key} className={isActive ? "active" : ""}>
                       <NavLink
                         to={prop.layout + prop.path}
                         onClick={props.toggleSidebar}
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '12px',
-                          padding: '10px 12px',
-                          borderRadius: '10px',
-                          textDecoration: 'none',
-                          background: isActive
-                            ? 'linear-gradient(135deg, rgba(255,152,0,0.45) 0%, rgba(255,193,7,0.3) 100%)'
-                            : 'transparent',
-                          border: isActive
-                            ? '1px solid rgba(255,152,0,0.7)'
-                            : '1px solid transparent',
-                          boxShadow: isActive ? '0 4px 16px rgba(255,152,0,0.3)' : 'none',
-                          transition: 'all 0.25s ease',
-                        }}
+                        className={isActive ? "active" : ""}
                       >
-                        <i
-                          className={prop.icon}
-                          style={{
-                            fontSize: '1rem',
-                            width: '20px',
-                            textAlign: 'center',
-                            flexShrink: 0,
-                            color: isActive ? '#FFD166' : 'rgba(255,255,255,0.75)',
-                          }}
-                        />
-                        <p style={{
-                          margin: 0,
-                          fontSize: '0.88rem',
-                          fontWeight: isActive ? '600' : '400',
-                          color: isActive ? '#FFD166' : 'rgba(255,255,255,0.85)',
-                          whiteSpace: 'nowrap',
-                          overflow: 'hidden',
-                          textOverflow: 'ellipsis',
-                        }}>
-                          {prop.name}
-                        </p>
+                        <i className={prop.icon} />
+                        <p>{prop.name}</p>
                       </NavLink>
                     </li>
                   );

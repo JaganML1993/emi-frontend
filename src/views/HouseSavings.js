@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from "react";
+import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import {
   Card,
   CardHeader,
@@ -7,7 +7,6 @@ import {
   Row,
   Col,
   Button,
-  Table,
   Spinner,
   Modal,
   ModalHeader,
@@ -29,9 +28,40 @@ const emptyForm = {
   notes: "",
 };
 
+const accentAmber = "#FFA02E";
+
+const filterInputStyle = {
+  background: "rgba(255,255,255,0.06)",
+  color: "#fff",
+  border: "1px solid rgba(255,255,255,0.12)",
+  borderRadius: 10,
+};
+
+const modalLabelStyle = {
+  color: "rgba(255,255,255,0.55)",
+  fontSize: "0.72rem",
+  fontWeight: 700,
+  textTransform: "uppercase",
+  letterSpacing: "0.06em",
+};
+
+const modalInputStyle = {
+  background: "rgba(255,255,255,0.06)",
+  border: "1px solid rgba(255,255,255,0.12)",
+  color: "#fff",
+  borderRadius: 10,
+};
+
+const modalCloseBtn = (onClick) => (
+  <button type="button" className="close text-white" onClick={onClick} style={{ opacity: 0.75 }}>
+    &times;
+  </button>
+);
+
 function HouseSavings() {
   const [entries, setEntries] = useState([]);
   const [loading, setLoading] = useState(true);
+  const isInitialHouseSavingsLoad = useRef(true);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [modalOpen, setModalOpen] = useState(false);
@@ -41,9 +71,8 @@ function HouseSavings() {
   const [deleteConfirm, setDeleteConfirm] = useState(null);
   const [isSuperAdmin, setIsSuperAdmin] = useState(false);
   const [users, setUsers] = useState([]);
-  const [selectedUserId, setSelectedUserId] = useState(""); // empty = current user
-  const [currentUserId, setCurrentUserId] = useState("");
-  const [dateFilter, setDateFilter] = useState("all"); // all, this_month, last_3_months, this_year, custom
+  const [selectedUserId, setSelectedUserId] = useState("");
+  const [dateFilter, setDateFilter] = useState("all");
   const [customFrom, setCustomFrom] = useState("");
   const [customTo, setCustomTo] = useState("");
   const [page, setPage] = useState(1);
@@ -51,7 +80,7 @@ function HouseSavings() {
   const [totalEntries, setTotalEntries] = useState(0);
   const [lastUpdated, setLastUpdated] = useState(null);
   const [goal, setGoal] = useState(0);
-  const [chartMode, setChartMode] = useState("cumulative"); // cumulative | individual
+  const [chartMode, setChartMode] = useState("cumulative");
   const [goalModalOpen, setGoalModalOpen] = useState(false);
   const [goalInput, setGoalInput] = useState("");
 
@@ -60,12 +89,10 @@ function HouseSavings() {
       const res = await api.get("/api/auth/me");
       if (res.data.success && res.data.user) {
         setIsSuperAdmin(res.data.user.role === "super_admin");
-        setCurrentUserId(res.data.user.id);
       }
     } catch {
       const stored = JSON.parse(localStorage.getItem("user") || "{}");
       setIsSuperAdmin(stored?.role === "super_admin");
-      setCurrentUserId(stored?.id || "");
     }
   }, []);
 
@@ -81,7 +108,8 @@ function HouseSavings() {
 
   const getDateRange = useCallback(() => {
     const now = new Date();
-    let fromDate = null, toDate = null;
+    let fromDate = null;
+    let toDate = null;
     if (dateFilter === "this_month") {
       fromDate = format(startOfMonth(now), "yyyy-MM-dd");
       toDate = format(endOfMonth(now), "yyyy-MM-dd");
@@ -110,7 +138,7 @@ function HouseSavings() {
 
   const fetchEntries = useCallback(async () => {
     try {
-      setLoading(true);
+      if (isInitialHouseSavingsLoad.current) setLoading(true);
       const { fromDate, toDate } = getDateRange();
       const params = new URLSearchParams();
       if (isSuperAdmin && selectedUserId) params.set("userId", selectedUserId);
@@ -129,6 +157,7 @@ function HouseSavings() {
       setEntries([]);
     } finally {
       setLoading(false);
+      isInitialHouseSavingsLoad.current = false;
     }
   }, [isSuperAdmin, selectedUserId, getDateRange, page, pageSize]);
 
@@ -150,7 +179,7 @@ function HouseSavings() {
 
   useEffect(() => {
     setPage(1);
-  }, [dateFilter, customFrom, customTo]);
+  }, [dateFilter, customFrom, customTo, selectedUserId]);
 
   const handleRefresh = useCallback(() => {
     setError("");
@@ -175,20 +204,6 @@ function HouseSavings() {
     } catch (err) {
       setError(err.response?.data?.message || "Failed to set goal");
     }
-  };
-
-  const exportCSV = () => {
-    const headers = "Date,Amount,Notes\n";
-    const rows = entries.map((e) =>
-      `${format(new Date(e.date), "yyyy-MM-dd")},${Number(e.amount || 0).toFixed(2)},"${(e.notes || "").replace(/"/g, '""')}"`
-    ).join("\n");
-    const blob = new Blob([headers + rows], { type: "text/csv" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `house-savings-${format(new Date(), "yyyy-MM-dd")}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
   };
 
   const totalPages = Math.ceil(totalEntries / pageSize) || 1;
@@ -269,17 +284,6 @@ function HouseSavings() {
   };
 
   const totalAmount = entries.reduce((sum, e) => sum + Number(e.amount || 0), 0);
-  const now = new Date();
-  const thisMonthStart = startOfMonth(now);
-  const thisMonthEnd = endOfMonth(now);
-  const lastMonthStart = startOfMonth(subMonths(now, 1));
-  const lastMonthEnd = endOfMonth(subMonths(now, 1));
-  const thisMonthSum = entries
-    .filter((e) => { const d = new Date(e.date); return d >= thisMonthStart && d <= thisMonthEnd; })
-    .reduce((s, e) => s + Number(e.amount || 0), 0);
-  const lastMonthSum = entries
-    .filter((e) => { const d = new Date(e.date); return d >= lastMonthStart && d <= lastMonthEnd; })
-    .reduce((s, e) => s + Number(e.amount || 0), 0);
   const goalProgress = goal > 0 ? Math.min(100, (totalAmount / goal) * 100) : 0;
   const viewingUser = isSuperAdmin && selectedUserId ? users.find((u) => u._id === selectedUserId) : null;
 
@@ -287,22 +291,29 @@ function HouseSavings() {
     if (!entries.length) return null;
     const sorted = [...entries].sort((a, b) => new Date(a.date) - new Date(b.date));
     const labels = sorted.map((e) => format(new Date(e.date), "dd MMM yy"));
-    const data = chartMode === "cumulative"
-      ? (() => { let t = 0; return sorted.map((e) => { t += Number(e.amount || 0); return t; }); })()
-      : sorted.map((e) => Number(e.amount || 0));
+    const data =
+      chartMode === "cumulative"
+        ? (() => {
+            let t = 0;
+            return sorted.map((e) => {
+              t += Number(e.amount || 0);
+              return t;
+            });
+          })()
+        : sorted.map((e) => Number(e.amount || 0));
     return {
       labels,
       datasets: [
         {
           label: chartMode === "cumulative" ? "Cumulative" : "Amount",
           data,
-          borderColor: "#34D399",
-          backgroundColor: "rgba(52, 211, 153, 0.2)",
+          borderColor: "#fbbf24",
+          backgroundColor: chartMode === "cumulative" ? "rgba(255,160,46,0.12)" : "rgba(255,160,46,0.06)",
           borderWidth: 2,
           tension: 0.4,
           fill: chartMode === "cumulative",
-          pointBackgroundColor: "#60A5FA",
-          pointBorderColor: "#ffffff",
+          pointBackgroundColor: "#141416",
+          pointBorderColor: "#fbbf24",
           pointBorderWidth: 2,
           pointRadius: 3,
           pointHoverRadius: 5,
@@ -311,115 +322,233 @@ function HouseSavings() {
     };
   }, [entries, chartMode]);
 
+  const chipBtn = (active) =>
+    active
+      ? {
+          background: "rgba(255,160,46,0.14)",
+          border: "1px solid rgba(255,160,46,0.35)",
+          color: "#fbbf24",
+          borderRadius: 8,
+          padding: "4px 10px",
+          fontSize: "0.72rem",
+          fontWeight: 700,
+          cursor: "pointer",
+        }
+      : {
+          background: "rgba(255,255,255,0.04)",
+          border: "1px solid rgba(255,255,255,0.1)",
+          color: "rgba(255,255,255,0.4)",
+          borderRadius: 8,
+          padding: "4px 10px",
+          fontSize: "0.72rem",
+          fontWeight: 600,
+          cursor: "pointer",
+        };
+
   if (loading) {
     return (
-      <div className="content" style={{ display: "flex", justifyContent: "center", alignItems: "center", minHeight: "400px" }}>
-        <Spinner color="primary" />
+      <div className="content">
+        <div style={{ display: "flex", justifyContent: "center", alignItems: "center", minHeight: "400px" }}>
+          <i
+            className="tim-icons icon-refresh-02"
+            style={{
+              fontSize: "2.5rem",
+              color: "#f59e0b",
+              animation: "hsSpin 0.9s linear infinite",
+              display: "inline-block",
+            }}
+          />
+        </div>
+        <style dangerouslySetInnerHTML={{ __html: `@keyframes hsSpin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }` }} />
       </div>
     );
   }
 
   return (
-    <div className="content">
-      <Row>
+    <div className="content house-savings-page-root" style={{ maxWidth: "100%", overflowX: "hidden", boxSizing: "border-box" }}>
+      <style
+        dangerouslySetInnerHTML={{
+          __html: `
+        @keyframes hsFadeUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .hs-section { animation: hsFadeUp 0.35s ease both; }
+        .hs-table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; border-radius: 12px; border: 1px solid rgba(255,255,255,0.06); }
+        .hs-table-wrap table { min-width: 520px; }
+      `,
+        }}
+      />
+
+      <Row className="hs-section">
         <Col xs="12">
           <Card
             style={{
-              background: "linear-gradient(135deg, #1E1E1E 0%, #2d2b42 50%, #1e293b 100%)",
-              border: "1px solid rgba(96, 165, 250, 0.35)",
-              borderRadius: "15px",
-              boxShadow: "0 8px 32px rgba(96, 165, 250, 0.12), 0 0 0 1px rgba(248, 113, 113, 0.08)",
+              background: "linear-gradient(165deg, #18181c 0%, #141416 50%, #121214 100%)",
+              border: "1px solid rgba(255,255,255,0.07)",
+              borderRadius: 16,
+              boxShadow: "0 4px 32px rgba(0,0,0,0.45), 0 0 0 1px rgba(255,160,46,0.06) inset",
+              overflow: "hidden",
             }}
           >
             <CardHeader
               style={{
-                background: "linear-gradient(135deg, rgba(52, 211, 153, 0.25) 0%, rgba(96, 165, 250, 0.2) 50%, rgba(248, 113, 113, 0.15) 100%)",
-                borderBottom: "1px solid rgba(248, 113, 113, 0.25)",
-                borderRadius: "15px 15px 0 0",
-                padding: "0.5rem 0.75rem",
+                background: "linear-gradient(90deg, rgba(255,160,46,0.08) 0%, transparent 55%)",
+                borderBottom: "1px solid rgba(255,255,255,0.07)",
+                padding: "1.1rem clamp(0.85rem, 3vw, 1.35rem)",
               }}
             >
-              <Row>
-                <Col className="text-left" sm="6">
-                  <CardTitle tag="h4" style={{ color: "#ffffff", fontWeight: "700", margin: "0", fontSize: "1.15rem" }}>
-                    <i className="tim-icons icon-bank mr-2" style={{ color: "#34D399" }}></i>
-                    House Savings
-                  </CardTitle>
-                  <p className="mb-0" style={{ fontSize: "0.8rem", color: "#60A5FA" }}>
-                    Track your house savings independently
-                  </p>
+              <Row className="align-items-start align-items-md-center" style={{ marginLeft: 0, marginRight: 0 }}>
+                <Col xs="12" md="7" style={{ paddingLeft: 0, paddingRight: 0 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 14, minWidth: 0 }}>
+                    <div
+                      style={{
+                        width: 44,
+                        height: 44,
+                        borderRadius: 12,
+                        background: "linear-gradient(145deg, rgba(255,160,46,0.2) 0%, rgba(255,160,46,0.06) 100%)",
+                        border: "1px solid rgba(255,160,46,0.28)",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        flexShrink: 0,
+                        boxShadow: "0 4px 16px rgba(255,160,46,0.12)",
+                      }}
+                    >
+                      <i className="tim-icons icon-bank" style={{ fontSize: "1rem", color: "#fbbf24" }} />
+                    </div>
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", marginBottom: 4 }}>
+                        <CardTitle
+                          tag="h4"
+                          style={{
+                            color: "#fff",
+                            fontWeight: 800,
+                            margin: 0,
+                            fontSize: "1.05rem",
+                            letterSpacing: "-0.02em",
+                          }}
+                        >
+                          House Savings
+                        </CardTitle>
+                        <span
+                          style={{
+                            fontSize: "0.65rem",
+                            fontWeight: 700,
+                            textTransform: "uppercase",
+                            letterSpacing: "0.08em",
+                            padding: "3px 8px",
+                            borderRadius: 6,
+                            background: "rgba(255,160,46,0.12)",
+                            color: "#fbbf24",
+                            border: "1px solid rgba(255,160,46,0.25)",
+                          }}
+                        >
+                          House fund
+                        </span>
+                      </div>
+                      <p className="mb-0" style={{ fontSize: "0.78rem", color: "rgba(255,255,255,0.38)", lineHeight: 1.4 }}>
+                        Track deposits toward your home goal
+                      </p>
+                    </div>
+                  </div>
                 </Col>
-                <Col sm="6" className="text-right">
-                  <Button
-                    size="sm"
-                    className="mr-2"
+                <Col xs="12" md="5" className="d-flex justify-content-md-end align-items-center flex-wrap mt-3 mt-md-0" style={{ paddingLeft: 0, paddingRight: 0, gap: 10 }}>
+                  <button
+                    type="button"
                     onClick={handleRefresh}
                     title="Refresh"
-                    style={{ background: "rgba(248, 113, 113, 0.25)", border: "1px solid rgba(248, 113, 113, 0.5)", color: "#F87171" }}
+                    style={{
+                      background: "transparent",
+                      border: "1px solid rgba(255,255,255,0.14)",
+                      borderRadius: 9,
+                      padding: "8px 14px",
+                      color: "rgba(255,255,255,0.65)",
+                      fontWeight: 600,
+                      cursor: "pointer",
+                    }}
                   >
                     <i className="tim-icons icon-refresh-02" />
-                  </Button>
-                  <Button
-                    style={{
-                      background: "linear-gradient(135deg, #34D399 0%, #10B981 100%)",
-                      border: "none",
-                      borderRadius: "8px",
-                      padding: "6px 12px",
-                      fontWeight: "600",
-                      boxShadow: "0 4px 12px rgba(52, 211, 153, 0.4)",
-                    }}
-                    onClick={openAddModal}
-                  >
-                    <i className="tim-icons icon-simple-add mr-1"></i>
+                  </button>
+                  <button type="button" onClick={openAddModal} className="btn-amber-outline">
+                    <i className="tim-icons icon-simple-add mr-1" />
                     Add Savings
-                  </Button>
+                  </button>
                 </Col>
               </Row>
             </CardHeader>
-            <CardBody style={{ padding: "1rem" }}>
+            <CardBody style={{ padding: "1.1rem clamp(0.85rem, 3vw, 1.35rem)", background: "rgba(0,0,0,0.14)" }}>
               {error && (
-                <Alert color="danger" style={{ background: "rgba(239, 68, 68, 0.15)", border: "1px solid rgba(239, 68, 68, 0.45)", color: "#FCA5A5" }}>
+                <Alert
+                  color="danger"
+                  style={{
+                    background: "rgba(239, 68, 68, 0.12)",
+                    border: "1px solid rgba(239, 68, 68, 0.35)",
+                    color: "#FCA5A5",
+                    borderRadius: 10,
+                  }}
+                >
                   {error}
                 </Alert>
               )}
               {success && (
-                <Alert color="success" style={{ background: "rgba(34, 197, 94, 0.15)", border: "1px solid rgba(34, 197, 94, 0.45)", color: "#BBF7D0" }}>
+                <Alert
+                  color="success"
+                  style={{
+                    background: "rgba(34, 197, 94, 0.12)",
+                    border: "1px solid rgba(34, 197, 94, 0.35)",
+                    color: "#BBF7D0",
+                    borderRadius: 10,
+                  }}
+                >
                   {success}
                 </Alert>
               )}
 
-              {isSuperAdmin && (
-                <FormGroup className="mb-3">
-                  <Label style={{ color: "#A78BFA", marginRight: "8px" }}>Filter by User</Label>
-                  <Input
-                    type="select"
-                    value={selectedUserId}
-                    onChange={(e) => setSelectedUserId(e.target.value)}
-                    style={{ maxWidth: "280px", display: "inline-block", background: "#1e1e2d", color: "#fff", border: "1px solid rgba(167, 139, 250, 0.4)" }}
-                  >
-                    <option value="">Me (Current User)</option>
-                    {users.map((u) => (
-                      <option key={u._id} value={u._id}>
-                        {u.name} ({u.email})
-                      </option>
-                    ))}
-                  </Input>
-                  {viewingUser && (
-                    <span className="ml-3" style={{ color: "#60A5FA", fontSize: "0.9rem" }}>
-                      Viewing: <strong style={{ color: "#34D399" }}>{viewingUser.name}</strong>
-                    </span>
-                  )}
-                </FormGroup>
-              )}
-
-              <Row className="mb-3">
-                <Col md="3">
-                  <Label style={{ color: "#60A5FA", fontSize: "0.8rem" }}>Date Range</Label>
+              <div
+                className="hs-filters-row mb-3"
+                style={{
+                  display: "flex",
+                  flexWrap: "nowrap",
+                  alignItems: "flex-end",
+                  gap: "12px 14px",
+                  overflowX: "auto",
+                  WebkitOverflowScrolling: "touch",
+                  paddingBottom: 2,
+                  marginLeft: 0,
+                  marginRight: 0,
+                }}
+              >
+                {isSuperAdmin && (
+                  <div style={{ flex: "0 0 auto", minWidth: 200, maxWidth: 280 }}>
+                    <Label style={{ ...modalLabelStyle, display: "block", marginBottom: 6 }}>Filter by user</Label>
+                    <Input
+                      type="select"
+                      value={selectedUserId}
+                      onChange={(e) => setSelectedUserId(e.target.value)}
+                      style={{ ...filterInputStyle, width: "100%", minWidth: 200 }}
+                    >
+                      <option value="">Me (current user)</option>
+                      {users.map((u) => (
+                        <option key={u._id} value={u._id}>
+                          {u.name} ({u.email})
+                        </option>
+                      ))}
+                    </Input>
+                  </div>
+                )}
+                {isSuperAdmin && viewingUser && (
+                  <div style={{ flex: "0 0 auto", paddingBottom: 10, whiteSpace: "nowrap", color: "rgba(255,255,255,0.5)", fontSize: "0.8rem" }}>
+                    Viewing: <strong style={{ color: "rgba(255,255,255,0.85)" }}>{viewingUser.name}</strong>
+                  </div>
+                )}
+                <div style={{ flex: "0 0 auto", minWidth: 148, width: 148 }}>
+                  <Label style={{ ...modalLabelStyle, display: "block", marginBottom: 6 }}>Date range</Label>
                   <Input
                     type="select"
                     value={dateFilter}
-                    onChange={(e) => { setDateFilter(e.target.value); setPage(1); }}
-                    style={{ background: "#1e1e2d", color: "#fff", border: "1px solid rgba(96, 165, 250, 0.4)" }}
+                    onChange={(e) => {
+                      setDateFilter(e.target.value);
+                      setPage(1);
+                    }}
+                    style={{ ...filterInputStyle, width: "100%" }}
                   >
                     <option value="all">All time</option>
                     <option value="this_month">This month</option>
@@ -427,210 +556,298 @@ function HouseSavings() {
                     <option value="this_year">This year</option>
                     <option value="custom">Custom</option>
                   </Input>
-                </Col>
+                </div>
                 {dateFilter === "custom" && (
                   <>
-                    <Col md="2">
-                      <Label style={{ color: "#FBBF24", fontSize: "0.8rem" }}>From</Label>
-                      <Input type="date" value={customFrom} onChange={(e) => setCustomFrom(e.target.value)} style={{ background: "#1e1e2d", color: "#fff", border: "1px solid rgba(251, 191, 36, 0.4)" }} />
-                    </Col>
-                    <Col md="2">
-                      <Label style={{ color: "#FBBF24", fontSize: "0.8rem" }}>To</Label>
-                      <Input type="date" value={customTo} onChange={(e) => setCustomTo(e.target.value)} style={{ background: "#1e1e2d", color: "#fff", border: "1px solid rgba(251, 191, 36, 0.4)" }} />
-                    </Col>
+                    <div style={{ flex: "0 0 auto", minWidth: 132, width: 132 }}>
+                      <Label style={{ ...modalLabelStyle, display: "block", marginBottom: 6 }}>From</Label>
+                      <Input type="date" value={customFrom} onChange={(e) => setCustomFrom(e.target.value)} style={{ ...filterInputStyle, width: "100%" }} />
+                    </div>
+                    <div style={{ flex: "0 0 auto", minWidth: 132, width: 132 }}>
+                      <Label style={{ ...modalLabelStyle, display: "block", marginBottom: 6 }}>To</Label>
+                      <Input type="date" value={customTo} onChange={(e) => setCustomTo(e.target.value)} style={{ ...filterInputStyle, width: "100%" }} />
+                    </div>
                   </>
                 )}
-                <Col md="2" className="d-flex align-items-end">
-                  <Button
-                    size="sm"
-                    onClick={exportCSV}
-                    disabled={entries.length === 0}
-                    style={{ background: "rgba(167, 139, 250, 0.3)", border: "1px solid rgba(167, 139, 250, 0.5)", color: "#A78BFA" }}
-                  >
-                    <i className="tim-icons icon-single-copy-04 mr-1" /> Export CSV
-                  </Button>
-                </Col>
-              </Row>
+              </div>
               {lastUpdated && (
-                <p className="mb-2" style={{ fontSize: "0.75rem", color: "#A78BFA" }}>
+                <p className="mb-3" style={{ fontSize: "0.72rem", color: "rgba(255,255,255,0.32)" }}>
                   Last updated: {format(lastUpdated, "dd MMM yyyy HH:mm")}
                 </p>
               )}
 
               <Row className="mb-4">
-                <Col md="4">
-                  <Card style={{ background: "linear-gradient(135deg, rgba(52, 211, 153, 0.15) 0%, rgba(96, 165, 250, 0.1) 100%)", border: "1px solid rgba(52, 211, 153, 0.5)", borderRadius: "12px", boxShadow: "0 4px 16px rgba(52, 211, 153, 0.15)" }}>
-                    <CardBody className="py-3">
-                      <p className="mb-0" style={{ fontSize: "0.8rem", color: "#34D399" }}>Total Savings</p>
-                      <h4 style={{ color: "#fff", margin: 0 }}>₹{totalAmount.toLocaleString("en-IN", { maximumFractionDigits: 2 })}</h4>
-                      <div className="mt-2">
-                        <small style={{ color: "#60A5FA" }}>This month: ₹{thisMonthSum.toLocaleString("en-IN", { maximumFractionDigits: 2 })}</small>
-                        <br />
-                        <small style={{ color: "#A78BFA" }}>Last month: ₹{lastMonthSum.toLocaleString("en-IN", { maximumFractionDigits: 2 })}</small>
-                      </div>
-                    </CardBody>
-                  </Card>
-                </Col>
-                <Col md="4">
-                  <Card style={{ background: "linear-gradient(135deg, rgba(96, 165, 250, 0.12) 0%, rgba(248, 113, 113, 0.08) 100%)", border: "1px solid rgba(248, 113, 113, 0.4)", borderRadius: "12px", boxShadow: "0 4px 16px rgba(248, 113, 113, 0.12)" }}>
+                <Col md="4" className="mb-3 mb-md-0">
+                  <Card
+                    style={{
+                      background: "#16161a",
+                      border: "1px solid rgba(255,255,255,0.06)",
+                      borderTop: "2px solid #10b981",
+                      borderRadius: 14,
+                      height: "100%",
+                    }}
+                  >
                     <CardBody className="py-3">
                       <div className="d-flex justify-content-between align-items-center mb-2">
-                        <p className="mb-0" style={{ fontSize: "0.8rem", color: "#F87171" }}>Savings Goal</p>
-                        <Button color="link" size="sm" className="p-0" style={{ color: "#F87171" }} onClick={() => { setGoalModalOpen(true); setGoalInput(goal.toString()); }}>
-                          <i className="tim-icons icon-pencil" />
-                        </Button>
+                        <span style={{ fontSize: "0.73rem", fontWeight: 700, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: "0.06em" }}>
+                          Savings goal
+                        </span>
+                        <button
+                          type="button"
+                          className="p-0 border-0 bg-transparent"
+                          style={{ color: "#fbbf24", cursor: "pointer" }}
+                          onClick={() => {
+                            setGoalModalOpen(true);
+                            setGoalInput(goal.toString());
+                          }}
+                          title="Edit goal"
+                        >
+                          <i className="tim-icons icon-pencil" style={{ fontSize: "0.85rem" }} />
+                        </button>
                       </div>
                       {goal > 0 ? (
                         <>
-                          <div className="progress" style={{ height: "8px", background: "rgba(0,0,0,0.3)", borderRadius: "4px" }}>
+                          <div className="progress" style={{ height: 8, background: "rgba(255,255,255,0.08)", borderRadius: 6 }}>
                             <div
                               className="progress-bar"
                               role="progressbar"
-                              style={{ width: `${goalProgress}%`, background: "linear-gradient(90deg, #34D399, #F87171)", borderRadius: "4px" }}
+                              style={{
+                                width: `${goalProgress}%`,
+                                background: "linear-gradient(90deg, #fbbf24, #e8890c)",
+                                borderRadius: 6,
+                              }}
                             />
                           </div>
-                          <p className="mb-0 mt-1" style={{ fontSize: "0.8rem", color: "#fff" }}>
-                            ₹{totalAmount.toLocaleString("en-IN", { maximumFractionDigits: 2 })} / ₹{goal.toLocaleString("en-IN", { maximumFractionDigits: 2 })} ({goalProgress.toFixed(0)}%)
+                          <p className="mb-0 mt-2" style={{ fontSize: "0.8rem", color: "rgba(255,255,255,0.72)" }}>
+                            ₹{totalAmount.toLocaleString("en-IN", { maximumFractionDigits: 2 })} / ₹{goal.toLocaleString("en-IN", { maximumFractionDigits: 2 })}{" "}
+                            <span style={{ color: "#fbbf24" }}>({goalProgress.toFixed(0)}%)</span>
                           </p>
                         </>
                       ) : (
-                        <p className="mb-0" style={{ color: "#9a9a9a", fontSize: "0.85rem" }}>Set a goal to track progress</p>
+                        <p className="mb-0" style={{ color: "rgba(255,255,255,0.35)", fontSize: "0.85rem" }}>
+                          Set a goal to track progress
+                        </p>
                       )}
                     </CardBody>
                   </Card>
                 </Col>
                 {chartData && (
-                  <Col md="4">
-                    <div className="d-flex justify-content-between align-items-center mb-1">
-                      <Label style={{ color: "#A78BFA", fontSize: "0.8rem", margin: 0 }}>Chart</Label>
-                      <div>
-                        <Button
-                          size="sm"
-                          className="mr-1"
-                          onClick={() => setChartMode("cumulative")}
-                          style={chartMode === "cumulative" ? { background: "linear-gradient(135deg, #34D399, #10B981)", border: "none", color: "#fff" } : { background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.2)", color: "#9a9a9a" }}
-                        >
-                          Cumulative
-                        </Button>
-                        <Button
-                          size="sm"
-                          onClick={() => setChartMode("individual")}
-                          style={chartMode === "individual" ? { background: "linear-gradient(135deg, #60A5FA, #3B82F6)", border: "none", color: "#fff" } : { background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.2)", color: "#9a9a9a" }}
-                        >
-                          Individual
-                        </Button>
-                      </div>
-                    </div>
-                    <div style={{ height: "120px" }}>
-                      <Line
-                    data={chartData}
-                    options={{
-                      responsive: true,
-                      maintainAspectRatio: false,
-                      scales: {
-                        y: {
-                          beginAtZero: true,
-                          grid: { color: "rgba(255,255,255,0.08)" },
-                          ticks: {
-                            color: "#9a9a9a",
-                            callback: (v) => "₹" + Number(v).toLocaleString(),
-                          },
-                        },
-                        x: {
-                          grid: { color: "rgba(255,255,255,0.08)" },
-                          ticks: { color: "#9a9a9a", maxRotation: 45 },
-                        },
-                      },
-                      plugins: {
-                        legend: { display: false },
-                        tooltip: {
-                          callbacks: {
-                            label: (ctx) => "₹" + Number(ctx.raw).toLocaleString("en-IN", { maximumFractionDigits: 2 }),
-                          },
-                        },
-                      },
-                    }}
-                    height={120}
-                  />
-                    </div>
+                  <Col md="8">
+                    <Card
+                      style={{
+                        background: "#16161a",
+                        border: "1px solid rgba(255,255,255,0.06)",
+                        borderTop: `2px solid ${accentAmber}`,
+                        borderRadius: 14,
+                      }}
+                    >
+                      <CardBody className="py-3">
+                        <div className="d-flex justify-content-between align-items-center mb-2 flex-wrap" style={{ gap: 8 }}>
+                          <span style={{ fontSize: "0.73rem", fontWeight: 700, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: "0.06em" }}>
+                            Trend
+                          </span>
+                          <div>
+                            <button type="button" className="mr-1 border-0" style={chipBtn(chartMode === "cumulative")} onClick={() => setChartMode("cumulative")}>
+                              Cumulative
+                            </button>
+                            <button type="button" className="border-0" style={chipBtn(chartMode === "individual")} onClick={() => setChartMode("individual")}>
+                              Individual
+                            </button>
+                          </div>
+                        </div>
+                        <div style={{ height: 140 }}>
+                          <Line
+                            data={chartData}
+                            options={{
+                              responsive: true,
+                              maintainAspectRatio: false,
+                              scales: {
+                                y: {
+                                  beginAtZero: true,
+                                  grid: { color: "rgba(255,255,255,0.06)" },
+                                  ticks: {
+                                    color: "rgba(255,255,255,0.45)",
+                                    callback: (v) => "\u20B9" + Number(v).toLocaleString(),
+                                  },
+                                },
+                                x: {
+                                  grid: { color: "rgba(255,255,255,0.06)" },
+                                  ticks: { color: "rgba(255,255,255,0.45)", maxRotation: 45 },
+                                },
+                              },
+                              plugins: {
+                                legend: { display: false },
+                                tooltip: {
+                                  callbacks: {
+                                    label: (ctx) => "\u20B9" + Number(ctx.raw).toLocaleString("en-IN", { maximumFractionDigits: 2 }),
+                                  },
+                                },
+                              },
+                            }}
+                            height={140}
+                          />
+                        </div>
+                      </CardBody>
+                    </Card>
                   </Col>
                 )}
               </Row>
 
               {entries.length === 0 ? (
-                <div
-                  className="text-center py-5"
-                  style={{
-                    background: "linear-gradient(135deg, rgba(52, 211, 153, 0.08) 0%, rgba(96, 165, 250, 0.06) 100%)",
-                    borderRadius: "12px",
-                    border: "1px dashed rgba(96, 165, 250, 0.4)",
-                  }}
-                >
-                  <i className="tim-icons icon-bank" style={{ fontSize: "3rem", color: "#34D399", opacity: 0.8 }} />
-                  <h5 style={{ color: "#fff", marginTop: "1rem" }}>No savings entries yet</h5>
-                  <p style={{ color: "#60A5FA", marginBottom: "1rem" }}>
+                <div className="text-center py-5">
+                  <i className="tim-icons icon-bank" style={{ fontSize: "3rem", color: accentAmber, marginBottom: "1rem", opacity: 0.45 }} />
+                  <div style={{ color: "rgba(255,255,255,0.55)", fontSize: "1rem", marginBottom: "0.5rem", fontWeight: 600 }}>No savings entries yet</div>
+                  <div style={{ color: "rgba(255,255,255,0.35)", fontSize: "0.85rem", marginBottom: "1.5rem" }}>
                     {dateFilter !== "all" ? "Try adjusting your date filter" : "Start tracking your house savings"}
-                  </p>
+                  </div>
                   {dateFilter === "all" && (
-                    <Button
-                      onClick={openAddModal}
-                      style={{ background: "linear-gradient(135deg, #34D399, #10B981)", border: "none", color: "#fff" }}
-                    >
+                    <button type="button" onClick={openAddModal} className="btn-amber-outline">
                       <i className="tim-icons icon-simple-add mr-1" /> Add your first entry
-                    </Button>
+                    </button>
                   )}
                 </div>
               ) : (
-                <Table responsive className="table-hover" style={{ color: "#ffffff" }}>
-                  <thead>
-                    <tr>
-                      <th style={{ color: "#60A5FA", borderColor: "rgba(255,255,255,0.1)" }}>Date</th>
-                      <th style={{ color: "#34D399", borderColor: "rgba(255,255,255,0.1)" }}>Amount</th>
-                      <th style={{ color: "#A78BFA", borderColor: "rgba(255,255,255,0.1)" }}>Notes</th>
-                      {isSuperAdmin && (
-                        <th style={{ color: "#F87171", borderColor: "rgba(255,255,255,0.1)", width: 120 }}>Actions</th>
-                      )}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {entries.map((entry) => (
-                      <tr key={entry._id}>
-                        <td style={{ borderColor: "rgba(255,255,255,0.1)" }}>
-                          {format(new Date(entry.date), "dd MMM yyyy")}
-                        </td>
-                        <td style={{ borderColor: "rgba(255,255,255,0.1)", color: "#34D399", fontWeight: 500 }}>
-                          ₹{Number(entry.amount || 0).toLocaleString("en-IN", { maximumFractionDigits: 2 })}
-                        </td>
-                        <td style={{ borderColor: "rgba(255,255,255,0.1)" }}>{entry.notes || "-"}</td>
-                        {isSuperAdmin && (
-                          <td style={{ borderColor: "rgba(255,255,255,0.1)" }}>
-                            <Button size="sm" className="mr-1" onClick={() => openEditModal(entry)} style={{ background: "rgba(96, 165, 250, 0.4)", border: "1px solid rgba(96, 165, 250, 0.6)", color: "#60A5FA" }}>
-                              <i className="tim-icons icon-pencil" />
-                            </Button>
-                            <Button size="sm" onClick={() => setDeleteConfirm(entry)} style={{ background: "rgba(239, 68, 68, 0.3)", border: "1px solid rgba(239, 68, 68, 0.5)", color: "#FCA5A5" }}>
-                              <i className="tim-icons icon-trash-simple" />
-                            </Button>
-                          </td>
-                        )}
+                <div className="hs-table-wrap">
+                  <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.83rem" }}>
+                    <thead>
+                      <tr>
+                        {["Date", "Amount", "Notes", ...(isSuperAdmin ? [""] : [])].map((h, i) => (
+                          <th
+                            key={i}
+                            style={{
+                              padding: "11px 14px",
+                              color: "rgba(255,255,255,0.4)",
+                              fontWeight: 700,
+                              textAlign: h === "" ? "right" : "left",
+                              whiteSpace: "nowrap",
+                              fontSize: "0.68rem",
+                              letterSpacing: "0.07em",
+                              textTransform: "uppercase",
+                              borderBottom: "1px solid rgba(255,255,255,0.08)",
+                              background: "rgba(255,255,255,0.03)",
+                              width: h === "" ? 100 : undefined,
+                            }}
+                          >
+                            {h}
+                          </th>
+                        ))}
                       </tr>
-                    ))}
-                  </tbody>
-                </Table>
+                    </thead>
+                    <tbody>
+                      {entries.map((entry) => (
+                        <tr
+                          key={entry._id}
+                          style={{ borderBottom: "1px solid rgba(255,255,255,0.05)", transition: "background 0.15s ease" }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.background = "rgba(255,255,255,0.04)";
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.background = "transparent";
+                          }}
+                        >
+                          <td style={{ padding: "11px 14px", color: "rgba(255,255,255,0.65)" }}>{format(new Date(entry.date), "dd MMM yyyy")}</td>
+                          <td
+                            style={{
+                              padding: "11px 14px",
+                              color: "#fbbf24",
+                              fontWeight: 800,
+                              whiteSpace: "nowrap",
+                            }}
+                          >
+                            ₹{Number(entry.amount || 0).toLocaleString("en-IN", { maximumFractionDigits: 2 })}
+                          </td>
+                          <td style={{ padding: "11px 14px", color: "rgba(255,255,255,0.55)" }}>{entry.notes || "—"}</td>
+                          {isSuperAdmin && (
+                            <td style={{ padding: "11px 12px", textAlign: "right", whiteSpace: "nowrap" }}>
+                              <button
+                                type="button"
+                                onClick={() => openEditModal(entry)}
+                                title="Edit"
+                                style={{
+                                  background: "rgba(255,160,46,0.12)",
+                                  border: "1px solid rgba(255,160,46,0.3)",
+                                  borderRadius: 8,
+                                  width: 32,
+                                  height: 32,
+                                  display: "inline-flex",
+                                  alignItems: "center",
+                                  justifyContent: "center",
+                                  cursor: "pointer",
+                                  color: "#fbbf24",
+                                  marginRight: 6,
+                                }}
+                              >
+                                <i className="tim-icons icon-pencil" style={{ fontSize: "0.7rem" }} />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setDeleteConfirm(entry)}
+                                title="Delete"
+                                style={{
+                                  background: "rgba(239,68,68,0.08)",
+                                  border: "1px solid rgba(239,68,68,0.22)",
+                                  borderRadius: 8,
+                                  width: 32,
+                                  height: 32,
+                                  display: "inline-flex",
+                                  alignItems: "center",
+                                  justifyContent: "center",
+                                  cursor: "pointer",
+                                  color: "#f87171",
+                                }}
+                              >
+                                <i className="tim-icons icon-trash-simple" style={{ fontSize: "0.7rem" }} />
+                              </button>
+                            </td>
+                          )}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               )}
 
               {entries.length > 0 && totalPages > 1 && (
-                <div className="d-flex justify-content-between align-items-center mt-3">
-                  <span style={{ color: "#F87171", fontSize: "0.85rem" }}>
+                <div className="d-flex justify-content-between align-items-center mt-3 flex-wrap" style={{ gap: 12 }}>
+                  <span style={{ color: "rgba(255,255,255,0.4)", fontSize: "0.85rem" }}>
                     Showing {((page - 1) * pageSize) + 1}–{Math.min(page * pageSize, totalEntries)} of {totalEntries}
                   </span>
                   <div>
-                    <Button size="sm" disabled={page <= 1} onClick={() => setPage((p) => p - 1)} style={{ background: "rgba(248, 113, 113, 0.25)", border: "1px solid rgba(248, 113, 113, 0.5)", color: "#F87171" }}>
+                    <button
+                      type="button"
+                      disabled={page <= 1}
+                      onClick={() => setPage((p) => p - 1)}
+                      style={{
+                        background: "transparent",
+                        border: "1px solid rgba(255,255,255,0.12)",
+                        borderRadius: 8,
+                        padding: "6px 12px",
+                        color: page <= 1 ? "rgba(255,255,255,0.25)" : "rgba(255,255,255,0.65)",
+                        cursor: page <= 1 ? "not-allowed" : "pointer",
+                        marginRight: 8,
+                      }}
+                    >
                       Previous
-                    </Button>
-                    <span className="mx-2" style={{ color: "#fff" }}>Page {page} of {totalPages}</span>
-                    <Button size="sm" disabled={page >= totalPages} onClick={() => setPage((p) => p + 1)} style={{ background: "rgba(248, 113, 113, 0.25)", border: "1px solid rgba(248, 113, 113, 0.5)", color: "#F87171" }}>
+                    </button>
+                    <span className="mx-1" style={{ color: "rgba(255,255,255,0.55)", fontSize: "0.85rem" }}>
+                      Page {page} of {totalPages}
+                    </span>
+                    <button
+                      type="button"
+                      disabled={page >= totalPages}
+                      onClick={() => setPage((p) => p + 1)}
+                      style={{
+                        background: "transparent",
+                        border: "1px solid rgba(255,255,255,0.12)",
+                        borderRadius: 8,
+                        padding: "6px 12px",
+                        color: page >= totalPages ? "rgba(255,255,255,0.25)" : "rgba(255,255,255,0.65)",
+                        cursor: page >= totalPages ? "not-allowed" : "pointer",
+                        marginLeft: 8,
+                      }}
+                    >
                       Next
-                    </Button>
+                    </button>
                   </div>
                 </div>
               )}
@@ -639,43 +856,70 @@ function HouseSavings() {
         </Col>
       </Row>
 
-      <Modal isOpen={modalOpen} toggle={closeModal} style={{ maxWidth: "500px" }}>
-        <ModalHeader toggle={closeModal} style={{ background: "linear-gradient(135deg, #1e1e2d 0%, #2d2b42 100%)", color: "#fff", borderBottom: "1px solid rgba(52, 211, 153, 0.3)" }}>
-          <span style={{ color: "#34D399" }}>{editId ? "Edit Savings" : "Add Savings"}</span>
+      <Modal isOpen={modalOpen} toggle={closeModal} style={{ maxWidth: "500px" }} contentClassName="bg-dark border-0">
+        <ModalHeader
+          toggle={closeModal}
+          close={modalCloseBtn(closeModal)}
+          style={{ background: "#141416", color: "#fff", borderBottom: "1px solid rgba(255,255,255,0.08)" }}
+        >
+          {editId ? "Edit Savings" : "Add Savings"}
         </ModalHeader>
         <Form onSubmit={handleSubmit}>
-          <ModalBody style={{ background: "#2d2b42", color: "#fff" }}>
-            {error && <Alert color="danger">{error}</Alert>}
-            {success && <Alert color="success">{success}</Alert>}
+          <ModalBody style={{ background: "#1a1a1e", color: "#fff" }}>
+            {error && (
+              <Alert color="danger" style={{ background: "rgba(239,68,68,0.12)", border: "1px solid rgba(239,68,68,0.35)", color: "#FCA5A5" }}>
+                {error}
+              </Alert>
+            )}
+            {success && (
+              <Alert color="success" style={{ background: "rgba(34,197,94,0.12)", border: "1px solid rgba(34,197,94,0.35)", color: "#BBF7D0" }}>
+                {success}
+              </Alert>
+            )}
             <FormGroup>
-              <Label style={{ color: "#60A5FA" }}>Date *</Label>
-              <Input name="date" type="date" value={formData.date} onChange={handleChange} required style={{ background: "#1e1e2d", color: "#fff", border: "1px solid rgba(96, 165, 250, 0.4)" }} />
+              <Label style={modalLabelStyle}>Date *</Label>
+              <Input name="date" type="date" value={formData.date} onChange={handleChange} required style={modalInputStyle} />
             </FormGroup>
             <FormGroup>
-              <Label style={{ color: "#34D399" }}>Amount (₹) *</Label>
-              <Input name="amount" type="number" value={formData.amount} onChange={handleChange} min="0" step="0.01" required style={{ background: "#1e1e2d", color: "#fff", border: "1px solid rgba(52, 211, 153, 0.4)" }} />
+              <Label style={modalLabelStyle}>Amount (₹) *</Label>
+              <Input name="amount" type="number" value={formData.amount} onChange={handleChange} min="0" step="0.01" required style={modalInputStyle} />
             </FormGroup>
-            <FormGroup>
-              <Label style={{ color: "#A78BFA" }}>Notes (optional)</Label>
-              <Input name="notes" type="textarea" value={formData.notes} onChange={handleChange} placeholder="Optional notes" rows={2} style={{ background: "#1e1e2d", color: "#fff", border: "1px solid rgba(167, 139, 250, 0.4)" }} />
+            <FormGroup className="mb-0">
+              <Label style={modalLabelStyle}>Notes (optional)</Label>
+              <Input name="notes" type="textarea" value={formData.notes} onChange={handleChange} placeholder="Optional notes" rows={2} style={modalInputStyle} />
             </FormGroup>
           </ModalBody>
-          <ModalFooter style={{ background: "#1e1e2d", borderTop: "1px solid rgba(255,255,255,0.1)" }}>
-            <Button onClick={closeModal} style={{ background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.2)", color: "#9a9a9a" }}>Cancel</Button>
-            <Button type="submit" disabled={saving} style={{ background: "linear-gradient(135deg, #34D399, #10B981)", border: "none", color: "#fff" }}>
-              {saving ? <><Spinner size="sm" className="mr-2" />Saving...</> : (editId ? "Update" : "Add")}
+          <ModalFooter style={{ background: "#141416", borderTop: "1px solid rgba(255,255,255,0.08)" }}>
+            <Button type="button" className="btn-cancel-outline" onClick={closeModal}>
+              Cancel
+            </Button>
+            <Button type="submit" className="btn-amber-outline" disabled={saving}>
+              {saving ? (
+                <>
+                  <Spinner size="sm" className="mr-2" style={{ color: "#ffb347" }} />
+                  Saving…
+                </>
+              ) : editId ? (
+                "Update"
+              ) : (
+                "Add"
+              )}
             </Button>
           </ModalFooter>
         </Form>
       </Modal>
 
-      <Modal isOpen={goalModalOpen} toggle={() => setGoalModalOpen(false)} style={{ maxWidth: "500px" }}>
-        <ModalHeader toggle={() => setGoalModalOpen(false)} style={{ background: "linear-gradient(135deg, #1e1e2d 0%, #2d2b42 100%)", color: "#fff", borderBottom: "1px solid rgba(248, 113, 113, 0.3)" }}>
-          <span style={{ color: "#F87171" }}>Set Savings Goal</span>
+      <Modal isOpen={goalModalOpen} toggle={() => setGoalModalOpen(false)} style={{ maxWidth: "500px" }} contentClassName="bg-dark border-0">
+        <ModalHeader
+          toggle={() => setGoalModalOpen(false)}
+          close={modalCloseBtn(() => setGoalModalOpen(false))}
+          style={{ background: "#141416", color: "#fff", borderBottom: "1px solid rgba(255,255,255,0.08)" }}
+        >
+          Set Savings Goal
         </ModalHeader>
-        <ModalBody style={{ background: "#2d2b42", color: "#fff" }}>
-          <FormGroup>
-            <Label style={{ color: "#F87171" }}>Goal amount (₹)</Label>
+        <ModalBody style={{ background: "#1a1a1e", color: "#fff" }}>
+          <FormGroup className="mb-0">
+            <Label style={modalLabelStyle}>Goal amount (₹)</Label>
             <Input
               type="number"
               min="0"
@@ -683,24 +927,39 @@ function HouseSavings() {
               value={goalInput}
               onChange={(e) => setGoalInput(e.target.value)}
               placeholder="Enter your savings goal"
-              style={{ background: "#1e1e2d", color: "#fff", border: "1px solid rgba(248, 113, 113, 0.4)" }}
+              style={modalInputStyle}
             />
           </FormGroup>
         </ModalBody>
-        <ModalFooter style={{ background: "#1e1e2d", borderTop: "1px solid rgba(255,255,255,0.1)" }}>
-          <Button onClick={() => setGoalModalOpen(false)} style={{ background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.2)", color: "#9a9a9a" }}>Cancel</Button>
-            <Button onClick={handleSetGoal} style={{ background: "linear-gradient(135deg, #F87171, #EF4444)", border: "none", color: "#fff" }}>Save Goal</Button>
+        <ModalFooter style={{ background: "#141416", borderTop: "1px solid rgba(255,255,255,0.08)" }}>
+          <Button type="button" className="btn-cancel-outline" onClick={() => setGoalModalOpen(false)}>
+            Cancel
+          </Button>
+          <Button type="button" className="btn-amber-outline" onClick={handleSetGoal}>
+            Save goal
+          </Button>
         </ModalFooter>
       </Modal>
 
-      <Modal isOpen={!!deleteConfirm} toggle={() => setDeleteConfirm(null)}>
-        <ModalHeader toggle={() => setDeleteConfirm(null)}>Confirm Delete</ModalHeader>
-        <ModalBody>
-          Are you sure you want to delete this savings entry (₹{deleteConfirm?.amount?.toLocaleString?.()} on {deleteConfirm ? format(new Date(deleteConfirm.date), "dd MMM yyyy") : ""})?
+      <Modal isOpen={!!deleteConfirm} toggle={() => setDeleteConfirm(null)} contentClassName="bg-dark border-0">
+        <ModalHeader
+          toggle={() => setDeleteConfirm(null)}
+          close={modalCloseBtn(() => setDeleteConfirm(null))}
+          style={{ background: "#141416", color: "#fff", borderBottom: "1px solid rgba(255,255,255,0.08)" }}
+        >
+          Confirm Delete
+        </ModalHeader>
+        <ModalBody style={{ background: "#1a1a1e", color: "rgba(255,255,255,0.85)" }}>
+          Are you sure you want to delete this savings entry (₹{deleteConfirm?.amount?.toLocaleString("en-IN")} on{" "}
+          {deleteConfirm ? format(new Date(deleteConfirm.date), "dd MMM yyyy") : ""})?
         </ModalBody>
-        <ModalFooter>
-          <Button color="secondary" onClick={() => setDeleteConfirm(null)}>Cancel</Button>
-          <Button color="danger" onClick={handleDeleteConfirm}>Delete</Button>
+        <ModalFooter style={{ background: "#141416", borderTop: "1px solid rgba(255,255,255,0.08)" }}>
+          <Button className="btn-cancel-outline" onClick={() => setDeleteConfirm(null)}>
+            Cancel
+          </Button>
+          <Button color="danger" onClick={handleDeleteConfirm}>
+            Delete
+          </Button>
         </ModalFooter>
       </Modal>
     </div>
