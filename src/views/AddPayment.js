@@ -184,7 +184,7 @@ function AddPayment() {
                     </span>
                   </div>
                   <p className="mb-0" style={{ fontSize: "0.78rem", color: "rgba(255,255,255,0.38)", lineHeight: 1.4 }}>
-                    Add a schedule — it will appear on the dashboard and payments list
+                    Add a schedule — it will appear on the dashboard and EMI list
                   </p>
                 </div>
               </div>

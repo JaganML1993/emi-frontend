@@ -92,7 +92,7 @@ const modalHeaderStyle = {
 function Budget() {
   const [categories, setCategories] = useState([]);
   const [expenses, setExpenses] = useState([]);
-  const [selectedCategoryId, setSelectedCategoryId] = useState("all");
+  const [selectedCategoryId, setSelectedCategoryId] = useState("");
   const [loading, setLoading] = useState(true);
   const [expLoading, setExpLoading] = useState(false);
   const [error, setError] = useState("");
@@ -128,10 +128,15 @@ function Budget() {
   }, []);
 
   const fetchExpenses = useCallback(async () => {
+    if (!selectedCategoryId) {
+      setExpenses([]);
+      setExpLoading(false);
+      return;
+    }
     setExpLoading(true);
     try {
       const params = new URLSearchParams();
-      if (selectedCategoryId && selectedCategoryId !== "all") params.set("categoryId", selectedCategoryId);
+      params.set("categoryId", selectedCategoryId);
       params.set("page", page);
       params.set("limit", pageSize);
       const res = await api.get(`/api/budget/expenses?${params.toString()}`);
@@ -185,12 +190,7 @@ function Budget() {
         await api.post("/api/budget/categories", payload);
         setSuccess("Category created");
       }
-      const updated = await fetchCategories();
-      // If this category is now the default, select it
-      if (catForm.isDefault) {
-        const saved = updated.find(c => editCatId ? c._id === editCatId : c.isDefault);
-        if (saved) setSelectedCategoryId(saved._id);
-      }
+      await fetchCategories();
       setCatModalOpen(false);
     } catch (err) {
       setError(err.response?.data?.message || err.response?.data?.errors?.[0]?.msg || "Operation failed");
@@ -204,7 +204,7 @@ function Budget() {
     try {
       await api.delete(`/api/budget/categories/${deleteCatConfirm._id}`);
       setSuccess("Category deleted");
-      if (selectedCategoryId === deleteCatConfirm._id) setSelectedCategoryId("all");
+      if (selectedCategoryId === deleteCatConfirm._id) setSelectedCategoryId("");
       setDeleteCatConfirm(null);
       fetchCategories();
       fetchExpenses();
@@ -216,7 +216,7 @@ function Budget() {
   // ─── Expense CRUD ─────────────────────────────────────────────────────────
   const openAddExp = () => {
     setEditExpId(null);
-    setExpForm({ ...emptyExpForm, date: format(new Date(), "yyyy-MM-dd"), categoryId: selectedCategoryId !== "all" ? selectedCategoryId : (categories[0]?._id || "") });
+    setExpForm({ ...emptyExpForm, date: format(new Date(), "yyyy-MM-dd"), categoryId: selectedCategoryId || "" });
     setError("");
     setExpModalOpen(true);
   };
@@ -290,7 +290,7 @@ function Budget() {
     );
   }
 
-  const selectedCat = selectedCategoryId !== "all" ? categories.find(c => c._id === selectedCategoryId) : null;
+  const selectedCat = selectedCategoryId ? categories.find((c) => c._id === selectedCategoryId) : null;
   const budgetProgress = selectedCat?.budgetLimit > 0 ? Math.min(100, ((selectedCat.totalSpent || 0) / selectedCat.budgetLimit) * 100) : null;
 
   return (
@@ -346,38 +346,41 @@ function Budget() {
           <Card style={cardStyle}>
             <CardHeader style={headerStyle}>
               <div className="d-flex justify-content-between align-items-center">
-                <CardTitle tag="h5" style={{ color: "#fff", margin: 0, fontSize: "1.02rem", fontWeight: 800, letterSpacing: "-0.02em" }}>
-                  <i className="tim-icons icon-tag mr-2" style={{ color: "#fbbf24" }} />
-                  Categories
-                </CardTitle>
+                <div>
+                  <CardTitle tag="h5" style={{ color: "#fff", margin: 0, fontSize: "1.02rem", fontWeight: 800, letterSpacing: "-0.02em" }}>
+                    <i className="tim-icons icon-tag mr-2" style={{ color: "#fbbf24" }} />
+                    Categories
+                  </CardTitle>
+                  {categories.length > 0 && (
+                    <div style={{ fontSize: "0.72rem", color: "rgba(255,255,255,0.38)", marginTop: 6 }}>
+                      Total spent (all):{" "}
+                      <span style={{ color: "rgba(251,191,36,0.9)", fontWeight: 700 }}>₹{grandTotal.toLocaleString("en-IN", { maximumFractionDigits: 2 })}</span>
+                    </div>
+                  )}
+                </div>
                 <Button type="button" className="btn-amber-outline" size="sm" onClick={openAddCat} style={{ padding: "6px 12px" }} title="New Category">
                   <i className="tim-icons icon-simple-add" />
                 </Button>
               </div>
             </CardHeader>
             <CardBody style={{ padding: "0.65rem", background: "rgba(0,0,0,0.14)" }}>
-              {/* All categories option */}
-              <div
-                onClick={() => setSelectedCategoryId("all")}
-                style={{
-                  display: "flex", alignItems: "center", gap: "10px",
-                  padding: "9px 10px", borderRadius: "8px", cursor: "pointer", marginBottom: "4px",
-                  background: selectedCategoryId === "all" ? "rgba(255,160,46,0.1)" : "rgba(255,255,255,0.03)",
-                  border: selectedCategoryId === "all" ? "1px solid rgba(255,160,46,0.3)" : "1px solid transparent",
-                  transition: "all 0.2s"
-                }}
-              >
-                <div style={{ width: "28px", height: "28px", borderRadius: "6px", background: "rgba(255,255,255,0.08)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                  <i className="tim-icons icon-app" style={{ color: "rgba(255,255,255,0.5)", fontSize: "0.85rem" }} />
+              {categories.length > 0 && (
+                <div
+                  style={{
+                    padding: "8px 10px 10px",
+                    marginBottom: 6,
+                    fontSize: "0.74rem",
+                    color: "rgba(255,255,255,0.42)",
+                    lineHeight: 1.45,
+                    background: "rgba(255,160,46,0.06)",
+                    border: "1px solid rgba(255,160,46,0.12)",
+                    borderRadius: 8,
+                  }}
+                >
+                  <i className="tim-icons icon-bulb-63 mr-1" style={{ color: "#fbbf24", opacity: 0.85 }} />
+                  Select a category to load its expenses. Nothing is shown until you choose one.
                 </div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ color: "#fff", fontWeight: 600, fontSize: "0.85rem", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>All Categories</div>
-                  <div style={{ fontSize: "0.72rem", color: "#9a9a9a", marginTop: "1px" }}>
-                    ₹{grandTotal.toLocaleString("en-IN", { maximumFractionDigits: 2 })} total
-                  </div>
-                </div>
-                <Badge style={{ background: "rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.5)", border: "1px solid rgba(255,255,255,0.1)", flexShrink: 0 }}>{categories.length}</Badge>
-              </div>
+              )}
 
               {categories.length === 0 ? (
                 <div className="text-center py-4" style={{ color: "rgba(255,255,255,0.45)", fontSize: "0.85rem" }}>
@@ -455,7 +458,7 @@ function Budget() {
                 <Col sm="6">
                   <CardTitle tag="h5" style={{ color: "#fff", margin: 0, fontSize: "1.02rem", fontWeight: 800, letterSpacing: "-0.02em" }}>
                     <i className="tim-icons icon-money-coins mr-2" style={{ color: "#fbbf24" }} />
-                    {selectedCategoryId === "all" ? "All Expenses" : `${selectedCat?.name || ""} Expenses`}
+                    {!selectedCategoryId ? "Expenses" : `${selectedCat?.name || "Category"} · expenses`}
                   </CardTitle>
                   {budgetProgress !== null && (
                     <div className="mt-1">
@@ -474,7 +477,7 @@ function Budget() {
                   )}
                 </Col>
                 <Col sm="6" className="text-right">
-                  <Button type="button" className="btn-amber-outline" onClick={openAddExp} disabled={categories.length === 0} style={{ padding: "6px 14px" }}>
+                  <Button type="button" className="btn-amber-outline" onClick={openAddExp} disabled={categories.length === 0 || !selectedCategoryId} style={{ padding: "6px 14px" }} title={!selectedCategoryId ? "Select a category first" : undefined}>
                     <i className="tim-icons icon-simple-add mr-1" /> Add Expense
                   </Button>
                 </Col>
@@ -482,7 +485,15 @@ function Budget() {
             </CardHeader>
 
             <CardBody style={{ padding: "1rem", background: "rgba(0,0,0,0.14)" }}>
-              {expLoading ? (
+              {!selectedCategoryId ? (
+                <div className="text-center py-5" style={{ background: "rgba(255,255,255,0.02)", borderRadius: 12, border: "1px dashed rgba(255,255,255,0.1)" }}>
+                  <i className="tim-icons icon-tag" style={{ fontSize: "3rem", color: "rgba(255,255,255,0.2)" }} />
+                  <h5 style={{ color: "rgba(255,255,255,0.65)", marginTop: "1rem" }}>Choose a category</h5>
+                  <p style={{ color: "rgba(255,255,255,0.38)", maxWidth: 360, margin: "0.5rem auto 0" }}>
+                    Pick a budget category on the left to load expenses for that category only.
+                  </p>
+                </div>
+              ) : expLoading ? (
                 <div className="text-center py-5">
                   <i
                     className="tim-icons icon-refresh-02"
@@ -497,11 +508,11 @@ function Budget() {
               ) : expenses.length === 0 ? (
                 <div className="text-center py-5" style={{ background: "rgba(255,255,255,0.02)", borderRadius: 12, border: "1px dashed rgba(255,160,46,0.22)" }}>
                   <i className="tim-icons icon-money-coins" style={{ fontSize: "3rem", color: "rgba(255,160,46,0.35)" }} />
-                  <h5 style={{ color: "rgba(255,255,255,0.75)", marginTop: "1rem" }}>No expenses yet</h5>
+                  <h5 style={{ color: "rgba(255,255,255,0.75)", marginTop: "1rem" }}>No expenses in this category</h5>
                   <p style={{ color: "rgba(255,255,255,0.4)" }}>
-                    {categories.length === 0 ? "Create a category first, then add expenses" : "Add your first expense to track spending"}
+                    {categories.length === 0 ? "Create a category first, then add expenses" : "Add an expense to this category"}
                   </p>
-                  {categories.length > 0 && (
+                  {categories.length > 0 && selectedCategoryId && (
                     <Button type="button" className="btn-amber-outline" onClick={openAddExp}>
                       <i className="tim-icons icon-simple-add mr-1" /> Add Expense
                     </Button>
@@ -513,7 +524,7 @@ function Budget() {
                     <Table responsive className="table-hover" style={{ color: "rgba(255,255,255,0.78)", marginBottom: 0 }}>
                       <thead>
                         <tr style={{ background: "rgba(255,160,46,0.06)" }}>
-                          {["Date", ...(selectedCategoryId === "all" ? ["Category"] : []), "Title", "Amount", "Method", "Notes", "Actions"].map((h) => (
+                          {["Date", "Title", "Amount", "Method", "Notes", "Actions"].map((h) => (
                             <th
                               key={h}
                               style={{
@@ -535,18 +546,6 @@ function Budget() {
                         {expenses.map((exp) => (
                           <tr key={exp._id}>
                             <td style={{ borderColor: "rgba(255,255,255,0.05)", fontSize: "0.83rem" }}>{format(new Date(exp.date), "dd MMM yyyy")}</td>
-                            {selectedCategoryId === "all" && (
-                              <td style={{ borderColor: "rgba(255,255,255,0.05)" }}>
-                                {exp.category ? (
-                                  <span style={{ color: "rgba(255,255,255,0.65)", fontSize: "0.83rem", fontWeight: 500 }}>
-                                    <i className={`tim-icons ${exp.category.icon || "icon-tag"} mr-1`} style={{ fontSize: "0.7rem", color: "rgba(251,191,36,0.75)" }} />
-                                    {exp.category.name}
-                                  </span>
-                                ) : (
-                                  <span style={{ color: "rgba(255,255,255,0.25)" }}>—</span>
-                                )}
-                              </td>
-                            )}
                             <td style={{ borderColor: "rgba(255,255,255,0.05)", fontSize: "0.83rem" }}>{exp.title}</td>
                             <td style={{ borderColor: "rgba(255,255,255,0.05)", color: "#fbbf24", fontWeight: 700, fontSize: "0.83rem" }}>
                               ₹{Number(exp.amount || 0).toLocaleString("en-IN", { maximumFractionDigits: 2 })}
@@ -707,7 +706,7 @@ function Budget() {
                     ★ Set as Default Category
                   </div>
                   <div style={{ color: "#9a9a9a", fontSize: "0.75rem" }}>
-                    This category will be selected automatically when you open Budget
+                    Shown as ★ in the list; you still choose a category to view expenses
                   </div>
                 </div>
               </div>

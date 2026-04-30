@@ -23,7 +23,7 @@ const EditPayment = lazy(() => import("views/EditPayment.js"));
 const UserProfile = lazy(() => import("views/UserProfile.js"));
 const RolesManagement = lazy(() => import("views/RolesManagement.js"));
 const Users = lazy(() => import("views/Users.js"));
-const HouseSavings = lazy(() => import("views/HouseSavings.js"));
+const LandSavings = lazy(() => import("views/LandSavings.js"));
 const Budget = lazy(() => import("views/Budget.js"));
 const GoldSavings = lazy(() => import("views/GoldSavings.js"));
 const GoldSavingsForm = lazy(() => import("views/GoldSavingsForm.js"));
@@ -39,33 +39,24 @@ var routes = [
     layout: "/admin",
   },
   {
+    path: "/expenses",
+    name: "Expenses",
+    icon: "tim-icons icon-notes",
+    component: Expenses,
+    layout: "/admin",
+  },
+  {
+    path: "/land-savings",
+    name: "Land Savings",
+    icon: "tim-icons icon-world",
+    component: LandSavings,
+    layout: "/admin",
+  },
+  {
     path: "/payments",
-    name: "Payments",
+    name: "EMI",
     icon: "tim-icons icon-credit-card",
     component: Payments,
-    layout: "/admin",
-  },
-  {
-    path: "/user-profile",
-    name: "User Profile",
-    icon: "tim-icons icon-single-02",
-    component: UserProfile,
-    layout: "/admin",
-    hidden: true,
-  },
-  {
-    path: "/users",
-    name: "Users",
-    icon: "tim-icons icon-single-02",
-    component: Users,
-    layout: "/admin",
-    roles: ["admin", "super_admin"],
-  },
-  {
-    path: "/house-savings",
-    name: "House Savings",
-    icon: "tim-icons icon-bank",
-    component: HouseSavings,
     layout: "/admin",
   },
   {
@@ -83,11 +74,12 @@ var routes = [
     layout: "/admin",
   },
   {
-    path: "/expenses",
-    name: "Expenses",
-    icon: "tim-icons icon-notes",
-    component: Expenses,
+    path: "/users",
+    name: "Users",
+    icon: "tim-icons icon-single-02",
+    component: Users,
     layout: "/admin",
+    roles: ["admin", "super_admin"],
   },
   {
     path: "/roles-management",
@@ -96,6 +88,14 @@ var routes = [
     component: RolesManagement,
     layout: "/admin",
     roles: ["admin", "super_admin"],
+  },
+  {
+    path: "/user-profile",
+    name: "User Profile",
+    icon: "tim-icons icon-single-02",
+    component: UserProfile,
+    layout: "/admin",
+    hidden: true,
   },
   {
     path: "/gold-savings/add",
@@ -129,10 +129,9 @@ var routes = [
     layout: "/admin",
     hidden: true,
   },
-  // Hidden routes (not shown in sidebar)
   {
     path: "/payments/add",
-    name: "Add Payment",
+    name: "Add EMI",
     icon: "tim-icons icon-simple-add",
     component: AddPayment,
     layout: "/admin",
@@ -140,7 +139,7 @@ var routes = [
   },
   {
     path: "/payments/edit/:id",
-    name: "Edit Payment",
+    name: "Edit EMI",
     icon: "tim-icons icon-pencil",
     component: EditPayment,
     layout: "/admin",

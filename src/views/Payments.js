@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Card,
@@ -7,14 +7,89 @@ import {
   CardTitle,
   Row,
   Col,
+  Button,
 } from "reactstrap";
-import { format } from "date-fns";
+import { format, addMonths, endOfMonth } from "date-fns";
+import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  LineElement,
+  PointElement,
+  Filler,
+  Tooltip,
+  Legend,
+} from "chart.js";
+import { Line } from "react-chartjs-2";
 import api from "../config/axios";
+
+ChartJS.register(CategoryScale, LinearScale, LineElement, PointElement, Filler, Tooltip, Legend);
+
+function calculatePendingEMIs(payment) {
+  if (payment.emiType === "recurring") {
+    return "Ongoing";
+  }
+
+  if (!payment.startDate || !payment.endDate) {
+    return "-";
+  }
+
+  const startDate = new Date(payment.startDate);
+  const endDate = new Date(payment.endDate);
+  startDate.setHours(0, 0, 0, 0);
+  endDate.setHours(0, 0, 0, 0);
+
+  if (endDate < startDate) {
+    return 0;
+  }
+
+  const emiDay = payment.emiDay || startDate.getDate();
+  const paidCount = typeof payment.paidCount === "number" ? payment.paidCount : 0;
+
+  const startYear = startDate.getFullYear();
+  const startMonth = startDate.getMonth();
+  const endYear = endDate.getFullYear();
+  const endMonth = endDate.getMonth();
+
+  const daysInMonth = (year, month) => new Date(year, month + 1, 0).getDate();
+
+  let totalEmis = 0;
+  const totalMonths = (endYear - startYear) * 12 + (endMonth - startMonth) + 1;
+
+  for (let i = 0; i < totalMonths; i++) {
+    let year = startYear;
+    let month = startMonth + i;
+
+    while (month > 11) {
+      month -= 12;
+      year += 1;
+    }
+
+    const paymentDate = new Date(year, month, Math.min(emiDay, daysInMonth(year, month)));
+    paymentDate.setHours(0, 0, 0, 0);
+
+    if (paymentDate <= endDate) {
+      totalEmis += 1;
+    }
+  }
+
+  return Math.max(0, totalEmis - paidCount);
+}
+
+/** Ascending sort: numeric pending (0,1,2,…) then “-”, then “Ongoing”. */
+function pendingEmiSortValue(pending) {
+  const AFTER_NUMBERS = 1e12;
+  if (typeof pending === "number") return pending;
+  if (pending === "-") return AFTER_NUMBERS;
+  if (pending === "Ongoing") return AFTER_NUMBERS + 1;
+  return AFTER_NUMBERS + 2;
+}
 
 function Payments() {
   const navigate = useNavigate();
   const [emis, setEmis] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [forecastMonths, setForecastMonths] = useState(6);
 
   const fetchPayments = useCallback(async () => {
     try {
@@ -24,6 +99,9 @@ function Payments() {
       });
       const payments = response.data.data || [];
       const sorted = [...payments].sort((a, b) => {
+        const pa = pendingEmiSortValue(calculatePendingEMIs(a));
+        const pb = pendingEmiSortValue(calculatePendingEMIs(b));
+        if (pa !== pb) return pa - pb;
         const aEmiDay = a.emiDay || 0;
         const bEmiDay = b.emiDay || 0;
         return aEmiDay - bEmiDay;
@@ -49,12 +127,153 @@ function Payments() {
     return () => window.removeEventListener("focus", handleFocus);
   }, [fetchPayments]);
 
+  const forecastNow = useMemo(() => new Date(), []);
+
+  const forecastSeries = useMemo(() => {
+    const buckets = [];
+    for (let i = 0; i < forecastMonths; i++) {
+      const monthDate = addMonths(forecastNow, i);
+      buckets.push({
+        key: format(monthDate, "yyyy-MM"),
+        label: format(monthDate, "MMM yy"),
+        start: new Date(monthDate.getFullYear(), monthDate.getMonth(), 1),
+        end: endOfMonth(monthDate),
+        savings: 0,
+        expenses: 0,
+        total: 0,
+      });
+    }
+
+    emis.forEach((p) => {
+      const amount = Number(p.amount || 0);
+      if (!amount || p.status === "completed") return;
+      const isEnding = p.emiType === "ending";
+      const endDate = p.endDate ? new Date(p.endDate) : null;
+      const isSavings = p.category === "savings";
+
+      buckets.forEach((bucket) => {
+        const applies = !isEnding || (endDate && bucket.start <= endDate);
+        if (applies) {
+          if (isSavings) bucket.savings += amount;
+          else bucket.expenses += amount;
+          bucket.total += amount;
+        }
+      });
+    });
+
+    return buckets;
+  }, [emis, forecastMonths, forecastNow]);
+
+  const handleForecastMonthsChange = (delta) => {
+    setForecastMonths((prev) => Math.min(12, Math.max(1, prev + delta)));
+  };
+
+  const forecastChartData = useMemo(() => {
+    const mkGradient = (ctx, color1, color2) => {
+      const gradient = ctx.createLinearGradient(0, 0, 0, 320);
+      gradient.addColorStop(0, color1);
+      gradient.addColorStop(1, color2);
+      return gradient;
+    };
+
+    return {
+      labels: forecastSeries.map((b) => b.label),
+      datasets: [
+        {
+          label: "Total EMI",
+          data: forecastSeries.map((b) => b.total),
+          borderColor: "#FFA02E",
+          borderWidth: 2,
+          backgroundColor: (ctx) => {
+            const chart = ctx.chart;
+            const { ctx: c, chartArea } = chart;
+            if (!chartArea) return "rgba(255,160,46,0.08)";
+            return mkGradient(c, "rgba(255,160,46,0.28)", "rgba(255,160,46,0.02)");
+          },
+          fill: true,
+          tension: 0.45,
+          pointRadius: 3,
+          pointHoverRadius: 6,
+          pointBackgroundColor: "#FFA02E",
+          pointBorderColor: "#1c1c1e",
+          pointBorderWidth: 2,
+          order: 1,
+        },
+      ],
+    };
+  }, [forecastSeries]);
+
+  const forecastChartOptions = useMemo(
+    () => ({
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: "index", intersect: false },
+      animation: { duration: 600, easing: "easeInOutQuart" },
+      plugins: {
+        legend: {
+          display: true,
+          position: "top",
+          align: "end",
+          labels: {
+            color: "rgba(255,255,255,0.4)",
+            font: { size: 11 },
+            boxWidth: 12,
+            boxHeight: 3,
+            padding: 18,
+            usePointStyle: true,
+            pointStyle: "line",
+          },
+        },
+        tooltip: {
+          backgroundColor: "#1c1c1e",
+          titleColor: "rgba(255,255,255,0.85)",
+          titleFont: { size: 12, weight: "bold" },
+          bodyColor: "rgba(255,255,255,0.55)",
+          bodyFont: { size: 11 },
+          borderColor: "rgba(255,255,255,0.1)",
+          borderWidth: 1,
+          padding: 14,
+          displayColors: true,
+          boxWidth: 10,
+          boxHeight: 10,
+          callbacks: {
+            label: (item) =>
+              `  ${item.dataset.label}:  ₹${Number(item.raw).toLocaleString("en-IN", { maximumFractionDigits: 0 })}`,
+          },
+        },
+      },
+      scales: {
+        x: {
+          grid: { color: "rgba(255,255,255,0.04)", drawBorder: false },
+          ticks: { color: "rgba(255,255,255,0.35)", font: { size: 11 } },
+          border: { color: "rgba(255,255,255,0.07)" },
+        },
+        y: {
+          beginAtZero: true,
+          grid: { color: "rgba(255,255,255,0.04)", drawBorder: false },
+          ticks: {
+            color: "rgba(255,255,255,0.35)",
+            font: { size: 11 },
+            maxTicksLimit: 6,
+            callback: (v) => {
+              if (v >= 100000) return "₹" + (v / 100000).toFixed(1) + "L";
+              if (v >= 1000) return "₹" + (v / 1000).toFixed(0) + "K";
+              return "₹" + v;
+            },
+          },
+          border: { color: "rgba(255,255,255,0.1)", dash: [4, 4] },
+        },
+      },
+    }),
+    []
+  );
+
   const handleAddEMI = () => {
     navigate("/admin/payments/add");
   };
 
   const handleDelete = async (id) => {
-    if (window.confirm("Are you sure you want to delete this payment?")) {
+    if (window.confirm("Are you sure you want to delete this EMI?")) {
       try {
         const token = localStorage.getItem("token");
         await api.delete(`/api/payments/${id}`, {
@@ -65,57 +284,6 @@ function Payments() {
         console.error("Error deleting payment:", error);
       }
     }
-  };
-
-  const calculatePendingEMIs = (payment) => {
-    if (payment.emiType === "recurring") {
-      return "Ongoing";
-    }
-
-    if (!payment.startDate || !payment.endDate) {
-      return "-";
-    }
-
-    const startDate = new Date(payment.startDate);
-    const endDate = new Date(payment.endDate);
-    startDate.setHours(0, 0, 0, 0);
-    endDate.setHours(0, 0, 0, 0);
-
-    if (endDate < startDate) {
-      return 0;
-    }
-
-    const emiDay = payment.emiDay || startDate.getDate();
-    const paidCount = typeof payment.paidCount === "number" ? payment.paidCount : 0;
-
-    const startYear = startDate.getFullYear();
-    const startMonth = startDate.getMonth();
-    const endYear = endDate.getFullYear();
-    const endMonth = endDate.getMonth();
-
-    const daysInMonth = (year, month) => new Date(year, month + 1, 0).getDate();
-
-    let totalEmis = 0;
-    const totalMonths = (endYear - startYear) * 12 + (endMonth - startMonth) + 1;
-
-    for (let i = 0; i < totalMonths; i++) {
-      let year = startYear;
-      let month = startMonth + i;
-
-      while (month > 11) {
-        month -= 12;
-        year += 1;
-      }
-
-      const paymentDate = new Date(year, month, Math.min(emiDay, daysInMonth(year, month)));
-      paymentDate.setHours(0, 0, 0, 0);
-
-      if (paymentDate <= endDate) {
-        totalEmis += 1;
-      }
-    }
-
-    return Math.max(0, totalEmis - paidCount);
   };
 
   if (loading) {
@@ -168,6 +336,154 @@ function Payments() {
         }}
       />
 
+      <Row className="mb-4">
+        <Col xs="12">
+          <Card
+            style={{
+              background: "#16161a",
+              border: "1px solid rgba(255,255,255,0.06)",
+              borderRadius: 16,
+              boxShadow: "0 4px 24px rgba(0,0,0,0.4)",
+              overflow: "hidden",
+            }}
+          >
+            <CardHeader
+              style={{
+                background: "transparent",
+                borderBottom: "1px solid rgba(255,255,255,0.06)",
+                padding: "1rem clamp(0.85rem, 3vw, 1.25rem)",
+              }}
+            >
+              <Row className="align-items-start align-items-md-center">
+                <Col xs="12" md="6">
+                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                    <div
+                      style={{
+                        width: 32,
+                        height: 32,
+                        borderRadius: 9,
+                        background: "rgba(245,158,11,0.12)",
+                        border: "1px solid rgba(245,158,11,0.22)",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        flexShrink: 0,
+                      }}
+                    >
+                      <i className="tim-icons icon-chart-bar-32" style={{ fontSize: "0.8rem", color: "#f59e0b" }} />
+                    </div>
+                    <div style={{ minWidth: 0 }}>
+                      <CardTitle tag="h4" style={{ color: "#fff", margin: 0, fontSize: "0.95rem", fontWeight: 700 }}>
+                        EMI Forecast
+                      </CardTitle>
+                      <p className="mb-0" style={{ fontSize: "0.71rem", color: "rgba(255,255,255,0.3)", marginTop: 1 }}>
+                        Month-wise totals from current month
+                      </p>
+                    </div>
+                  </div>
+                </Col>
+                <Col xs="12" md="6" className="d-flex justify-content-md-end mt-3 mt-md-0">
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                    <Button
+                      type="button"
+                      onClick={() => handleForecastMonthsChange(-1)}
+                      style={{
+                        background: "#252527",
+                        border: "1px solid rgba(255,255,255,0.1)",
+                        color: "rgba(255,255,255,0.7)",
+                        borderRadius: 7,
+                        padding: "5px 11px",
+                      }}
+                    >
+                      −
+                    </Button>
+                    <div
+                      style={{
+                        color: "rgba(255,255,255,0.6)",
+                        fontWeight: 600,
+                        minWidth: 72,
+                        textAlign: "center",
+                        fontSize: "0.85rem",
+                      }}
+                    >
+                      {forecastMonths} {forecastMonths === 1 ? "month" : "months"}
+                    </div>
+                    <Button
+                      type="button"
+                      onClick={() => handleForecastMonthsChange(1)}
+                      style={{
+                        background: "#252527",
+                        border: "1px solid rgba(255,255,255,0.1)",
+                        color: "rgba(255,255,255,0.7)",
+                        borderRadius: 7,
+                        padding: "5px 11px",
+                      }}
+                    >
+                      +
+                    </Button>
+                    <Button
+                      type="button"
+                      onClick={() => setForecastMonths(12)}
+                      style={{
+                        background: "#2e2e30",
+                        border: "1px solid rgba(255,255,255,0.14)",
+                        color: "rgba(255,255,255,0.75)",
+                        borderRadius: 7,
+                        padding: "5px 11px",
+                        fontWeight: 600,
+                      }}
+                    >
+                      1 Year
+                    </Button>
+                  </div>
+                </Col>
+              </Row>
+            </CardHeader>
+            <CardBody style={{ padding: "1.25rem clamp(0.85rem, 3vw, 1.5rem)", background: "transparent" }}>
+              {forecastSeries.length > 0 && forecastSeries.some((b) => b.total > 0) ? (
+                <>
+                  <div style={{ display: "flex", gap: 10, marginBottom: 16, flexWrap: "wrap" }}>
+                    {[
+                      {
+                        label: "Avg Monthly EMI",
+                        total: forecastSeries.reduce((s, b) => s + b.total, 0) / forecastSeries.length,
+                      },
+                    ].map(({ label, total }) => (
+                      <div
+                        key={label}
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 8,
+                          padding: "5px 12px",
+                          background: "rgba(245,158,11,0.07)",
+                          border: "1px solid rgba(245,158,11,0.18)",
+                          borderRadius: 8,
+                        }}
+                      >
+                        <div style={{ width: 14, height: 2, borderRadius: 2, background: "#f59e0b", flexShrink: 0 }} />
+                        <span style={{ color: "rgba(255,255,255,0.38)", fontSize: "0.71rem" }}>{label}</span>
+                        <span style={{ color: "#f59e0b", fontSize: "0.82rem", fontWeight: 800 }}>
+                          ₹{total.toLocaleString("en-IN", { maximumFractionDigits: 0 })}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                  <div style={{ height: 260, minHeight: 200, position: "relative", width: "100%", maxWidth: "100%" }}>
+                    <Line data={forecastChartData} options={forecastChartOptions} />
+                  </div>
+                </>
+              ) : (
+                <div className="text-center py-4" style={{ color: "rgba(255,255,255,0.25)" }}>
+                  <i className="tim-icons icon-chart-bar-32" style={{ fontSize: "3rem", display: "block", marginBottom: "1rem" }} />
+                  <div style={{ fontSize: "1rem" }}>No active EMIs to forecast</div>
+                </div>
+              )}
+            </CardBody>
+          </Card>
+        </Col>
+      </Row>
+
       <Row>
         <Col xs="12">
           <Card
@@ -217,7 +533,7 @@ function Payments() {
                             letterSpacing: "-0.02em",
                           }}
                         >
-                          Payments
+                          EMI
                         </CardTitle>
                         <span
                           style={{
@@ -262,14 +578,14 @@ function Payments() {
                     style={{ fontSize: "3rem", color: accentAmber, marginBottom: "1rem", opacity: 0.45 }}
                   />
                   <div style={{ color: "rgba(255,255,255,0.55)", fontSize: "1rem", marginBottom: "0.5rem", fontWeight: 600 }}>
-                    No payments yet
+                    No EMIs yet
                   </div>
                   <div style={{ color: "rgba(255,255,255,0.35)", fontSize: "0.85rem", marginBottom: "1.5rem" }}>
                     Add an EMI to start tracking your monthly schedule
                   </div>
                   <button type="button" onClick={handleAddEMI} className="btn-amber-outline">
                     <i className="tim-icons icon-simple-add mr-1" />
-                    Add your first payment
+                    Add your first EMI
                   </button>
                 </div>
               ) : (
@@ -277,32 +593,34 @@ function Payments() {
                   <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.83rem" }}>
                     <thead>
                       <tr>
-                        {["#", "Name", "Type", "Amount", "EMI Day", "End Date", "Pending", "Status", ""].map((h, i) => (
-                          <th
-                            key={i}
-                            style={{
-                              padding: "11px 14px",
-                              color: "rgba(255,255,255,0.4)",
-                              fontWeight: 700,
-                              textAlign: i === 3 ? "right" : i === 6 ? "center" : "left",
-                              whiteSpace: "nowrap",
-                              fontSize: "0.68rem",
-                              letterSpacing: "0.07em",
-                              textTransform: "uppercase",
-                              borderBottom: "1px solid rgba(255,255,255,0.08)",
-                              background: "rgba(255,255,255,0.03)",
-                            }}
-                          >
-                            {h}
-                          </th>
-                        ))}
+                        {["#", "Name", "Pending", "Amount", "EMI Day", "End Date", "Status", ""].map((h, i) => {
+                          const textAlign =
+                            h === "Amount" || h === "" ? "right" : h === "Pending" ? "center" : "left";
+                          return (
+                            <th
+                              key={i}
+                              style={{
+                                padding: "11px 14px",
+                                color: "rgba(255,255,255,0.4)",
+                                fontWeight: 700,
+                                textAlign,
+                                whiteSpace: "nowrap",
+                                fontSize: "0.68rem",
+                                letterSpacing: "0.07em",
+                                textTransform: "uppercase",
+                                borderBottom: "1px solid rgba(255,255,255,0.08)",
+                                background: "rgba(255,255,255,0.03)",
+                              }}
+                            >
+                              {h}
+                            </th>
+                          );
+                        })}
                       </tr>
                     </thead>
                     <tbody>
                       {emis.map((payment, idx) => {
                         const pending = calculatePendingEMIs(payment);
-                        const isSavings = payment.category === "savings";
-                        const typeAccent = isSavings ? "#3cd278" : "#ff5a5a";
                         return (
                           <tr
                             key={payment._id}
@@ -322,43 +640,6 @@ function Payments() {
                             </td>
                             <td style={{ padding: "11px 14px", color: "#fff", fontWeight: 700, fontSize: "0.88rem" }}>
                               {payment.name}
-                            </td>
-                            <td style={{ padding: "11px 14px" }}>
-                              <span
-                                style={{
-                                  fontSize: "0.6rem",
-                                  fontWeight: 800,
-                                  padding: "3px 8px",
-                                  borderRadius: 6,
-                                  textTransform: "uppercase",
-                                  letterSpacing: "0.06em",
-                                  background: `${typeAccent}18`,
-                                  color: typeAccent,
-                                  border: `1px solid ${typeAccent}35`,
-                                }}
-                              >
-                                {isSavings ? "Savings" : "Expense"}
-                              </span>
-                            </td>
-                            <td
-                              style={{
-                                padding: "11px 14px",
-                                textAlign: "right",
-                                color: "#fbbf24",
-                                fontWeight: 800,
-                                whiteSpace: "nowrap",
-                                fontSize: "0.9rem",
-                              }}
-                            >
-                              ₹{payment.amount?.toLocaleString("en-IN") || "0"}
-                            </td>
-                            <td style={{ padding: "11px 14px", color: "rgba(255,255,255,0.5)" }}>{payment.emiDay || "—"}</td>
-                            <td style={{ padding: "11px 14px", color: "rgba(255,255,255,0.5)", whiteSpace: "nowrap" }}>
-                              {payment.endDate
-                                ? format(new Date(payment.endDate), "dd MMM yyyy")
-                                : payment.emiType === "recurring"
-                                  ? "Ongoing"
-                                  : "—"}
                             </td>
                             <td style={{ padding: "11px 14px", textAlign: "center" }}>
                               {pending === "Ongoing" ? (
@@ -383,6 +664,26 @@ function Payments() {
                                   {pending}
                                 </span>
                               )}
+                            </td>
+                            <td
+                              style={{
+                                padding: "11px 14px",
+                                textAlign: "right",
+                                color: "#fbbf24",
+                                fontWeight: 800,
+                                whiteSpace: "nowrap",
+                                fontSize: "0.9rem",
+                              }}
+                            >
+                              ₹{payment.amount?.toLocaleString("en-IN") || "0"}
+                            </td>
+                            <td style={{ padding: "11px 14px", color: "rgba(255,255,255,0.5)" }}>{payment.emiDay || "—"}</td>
+                            <td style={{ padding: "11px 14px", color: "rgba(255,255,255,0.5)", whiteSpace: "nowrap" }}>
+                              {payment.endDate
+                                ? format(new Date(payment.endDate), "dd MMM yyyy")
+                                : payment.emiType === "recurring"
+                                  ? "Ongoing"
+                                  : "—"}
                             </td>
                             <td style={{ padding: "11px 14px" }}>
                               <span
@@ -454,7 +755,7 @@ function Payments() {
                     <tfoot>
                       <tr style={{ borderTop: "1px solid rgba(255,255,255,0.1)", background: "rgba(255,255,255,0.02)" }}>
                         <td colSpan={3} style={{ padding: "12px 14px", color: "rgba(255,255,255,0.4)", fontSize: "0.78rem" }}>
-                          {emis.length} payment{emis.length !== 1 ? "s" : ""} · {expenseScheduleCount} expenses ·{" "}
+                          {emis.length} EMI{emis.length !== 1 ? "s" : ""} · {expenseScheduleCount} expenses ·{" "}
                           {savingsScheduleCount} savings
                         </td>
                         <td

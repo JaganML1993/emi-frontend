@@ -7,12 +7,12 @@ import {
 import { format, subMonths, startOfMonth, endOfMonth } from "date-fns";
 import {
   Chart as ChartJS,
-  CategoryScale, LinearScale, BarElement, Tooltip, Legend,
+  CategoryScale, LinearScale, PointElement, LineElement, Filler, Tooltip, Legend,
 } from "chart.js";
-import { Bar } from "react-chartjs-2";
+import { Line } from "react-chartjs-2";
 import api from "../config/axios";
 
-ChartJS.register(CategoryScale, LinearScale, BarElement, Tooltip, Legend);
+ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Filler, Tooltip, Legend);
 
 const accentAmber = "#FFA02E";
 
@@ -88,7 +88,6 @@ function Expenses() {
   const [page, setPage]               = useState(1);
   const [loading, setLoading]         = useState(true);
   const [summary, setSummary]         = useState(null);
-  const [chartMonths, setChartMonths] = useState(3);
   const [deleteId, setDeleteId]       = useState(null);
   const [error, setError]             = useState("");
   const [success, setSuccess]         = useState("");
@@ -132,10 +131,10 @@ function Expenses() {
 
   const fetchSummary = useCallback(async () => {
     try {
-      const res = await api.get("/api/expenses/summary", { params: { months: chartMonths } });
+      const res = await api.get("/api/expenses/summary", { params: { months: 1 } });
       if (res.data.success) setSummary(res.data.data);
     } catch { /* non-critical */ }
-  }, [chartMonths]);
+  }, []);
 
   useEffect(() => {
     fetchEntries();
@@ -160,26 +159,24 @@ function Expenses() {
   const filteredSavingsTotal = useMemo(() => entries.filter(e => e.type === "savings").reduce((s, e) => s + e.amount, 0), [entries]);
 
   const chartData = useMemo(() => {
-    if (!summary?.monthlyData?.length) return null;
-    const md = summary.monthlyData;
+    if (!summary?.dailyExpenseData?.length) return null;
+    const dd = summary.dailyExpenseData;
     return {
-      labels: md.map(m => m.label),
+      labels: dd.map(d => d.label),
       datasets: [
         {
           label: "Expenses",
-          data: md.map(m => m.expense),
-          backgroundColor: "rgba(255,90,90,0.22)",
-          borderColor: "rgba(255,90,90,0.45)",
-          borderWidth: 1,
-          borderRadius: 5,
-        },
-        {
-          label: "Savings",
-          data: md.map(m => m.savings),
-          backgroundColor: "rgba(16,185,129,0.18)",
-          borderColor: "rgba(16,185,129,0.4)",
-          borderWidth: 1,
-          borderRadius: 5,
+          data: dd.map(d => d.expense),
+          borderColor: "rgba(248,113,113,0.95)",
+          backgroundColor: "rgba(248,113,113,0.12)",
+          borderWidth: 2,
+          fill: true,
+          tension: 0.35,
+          pointRadius: 3,
+          pointHoverRadius: 5,
+          pointBackgroundColor: "rgba(248,113,113,0.95)",
+          pointBorderColor: "#18181c",
+          pointBorderWidth: 1,
         },
       ],
     };
@@ -190,10 +187,19 @@ function Expenses() {
     maintainAspectRatio: true,
     plugins: {
       legend: { labels: { color: "rgba(255,255,255,0.4)", font: { size: 11 }, boxWidth: 12, padding: 12 } },
-      tooltip: { backgroundColor: "#18181c", borderColor: "rgba(255,160,46,0.2)", borderWidth: 1, titleColor: "rgba(255,255,255,0.9)", bodyColor: "rgba(255,255,255,0.55)", callbacks: { label: ctx => ` ₹${ctx.parsed.y.toLocaleString("en-IN")}` } },
+      tooltip: { backgroundColor: "#18181c", borderColor: "rgba(255,160,46,0.2)", borderWidth: 1, titleColor: "rgba(255,255,255,0.9)", bodyColor: "rgba(255,255,255,0.55)", callbacks: { label: ctx => ` ₹${(ctx.parsed?.y ?? ctx.raw).toLocaleString("en-IN")}` } },
     },
     scales: {
-      x: { grid: { color: "rgba(255,255,255,0.04)" }, ticks: { color: "rgba(255,255,255,0.35)", font: { size: 11 } } },
+      x: {
+        grid: { color: "rgba(255,255,255,0.04)" },
+        ticks: {
+          color: "rgba(255,255,255,0.35)",
+          font: { size: 10 },
+          maxRotation: 0,
+          autoSkip: true,
+          maxTicksLimit: 16,
+        },
+      },
       y: { grid: { color: "rgba(255,255,255,0.04)" }, ticks: { color: "rgba(255,255,255,0.35)", font: { size: 11 }, callback: v => `\u20B9${Number(v).toLocaleString("en-IN")}` } },
     },
   };
@@ -202,20 +208,6 @@ function Expenses() {
   const lastMonthExpense = summary?.lastMonth?.expense?.total || 0;
   const expenseDelta = thisMonthExpense - lastMonthExpense;
   const expenseDeltaPct = lastMonthExpense > 0 ? ((expenseDelta / lastMonthExpense) * 100).toFixed(1) : null;
-
-  const chartStepStyle = (disabled) => ({
-    width: 28,
-    height: 28,
-    borderRadius: 8,
-    background: "rgba(255,160,46,0.1)",
-    border: `1px solid ${disabled ? "rgba(255,255,255,0.06)" : "rgba(255,160,46,0.25)"}`,
-    color: disabled ? "rgba(255,255,255,0.2)" : "#fbbf24",
-    cursor: disabled ? "default" : "pointer",
-    fontSize: "0.95rem",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-  });
 
   return (
     <div className="content expenses-page-root" style={{ maxWidth: "100%", overflowX: "hidden", boxSizing: "border-box" }}>
@@ -312,22 +304,19 @@ function Expenses() {
       <Row className="exp-section">
         <Col xs="12">
           <Card style={{ ...cardStyle, marginBottom: 20 }}>
-            <CardHeader style={{ ...headerStyle, display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 10 }}>
-              <CardTitle tag="h5" style={{ color: "#fff", margin: 0, fontSize: "0.98rem", fontWeight: 800, letterSpacing: "-0.02em", display: "flex", alignItems: "center", gap: 10 }}>
+            <CardHeader style={headerStyle}>
+              <CardTitle tag="h5" style={{ color: "#fff", margin: 0, fontSize: "0.98rem", fontWeight: 800, letterSpacing: "-0.02em", display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
                 <i className="tim-icons icon-chart-bar-32" style={{ color: "#fbbf24" }} />
-                Monthly Expenses &amp; Savings
+                <span>
+                  Daily expenses
+                  <span style={{ display: "block", fontSize: "0.72rem", fontWeight: 600, color: "rgba(255,255,255,0.38)", marginTop: 4, letterSpacing: "0.04em" }}>
+                    {format(new Date(), "MMMM yyyy")} · expense entries only
+                  </span>
+                </span>
               </CardTitle>
-              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                <button type="button" onClick={() => setChartMonths(m => Math.max(1, m - 1))} disabled={chartMonths <= 1} style={chartStepStyle(chartMonths <= 1)}>−</button>
-                <span style={{ color: "rgba(255,255,255,0.75)", fontWeight: 800, fontSize: "0.82rem", minWidth: 52, textAlign: "center" }}>{chartMonths}M</span>
-                <button type="button" onClick={() => setChartMonths(m => Math.min(24, m + 1))} disabled={chartMonths >= 24} style={chartStepStyle(chartMonths >= 24)}>+</button>
-                {[3, 6, 12].map(n => (
-                  <button key={n} type="button" onClick={() => setChartMonths(n)} style={{ ...amberChip(chartMonths === n), fontSize: "0.7rem", padding: "3px 10px" }}>{n}M</button>
-                ))}
-              </div>
             </CardHeader>
             <CardBody style={{ padding: "1rem 1.2rem 0.9rem", background: "rgba(0,0,0,0.14)" }}>
-              {chartData ? <Bar data={chartData} options={chartOptions} style={{ maxHeight: 240 }} /> : <div style={{ textAlign: "center", color: "rgba(255,255,255,0.28)", padding: "2rem", fontSize: "0.85rem" }}>No data for this period</div>}
+              {chartData ? <Line data={chartData} options={chartOptions} style={{ maxHeight: 240 }} /> : <div style={{ textAlign: "center", color: "rgba(255,255,255,0.28)", padding: "2rem", fontSize: "0.85rem" }}>No data for this period</div>}
             </CardBody>
           </Card>
         </Col>

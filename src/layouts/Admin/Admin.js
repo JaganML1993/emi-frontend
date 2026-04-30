@@ -24,6 +24,7 @@ import PerfectScrollbar from "perfect-scrollbar";
 import AdminNavbar from "components/Navbars/AdminNavbar.js";
 import Footer from "components/Footer/Footer.js";
 import Sidebar from "components/Sidebar/Sidebar.js";
+import MobileBottomNav from "components/MobileBottomNav/MobileBottomNav.js";
 import { Spinner } from "reactstrap";
 // import FixedPlugin from "components/FixedPlugin/FixedPlugin.js";
 
@@ -54,7 +55,7 @@ function Admin(props) {
         }
       } catch {
         const user = JSON.parse(localStorage.getItem("user") || "{}");
-        setAllowedPaths((user.role === "admin" || user.role === "super_admin") ? ["/dashboard", "/payments", "/budget", "/house-savings", "/gold-savings", "/expenses", "/users", "/user-profile", "/roles-management"] : ["/dashboard", "/payments", "/budget", "/house-savings", "/gold-savings", "/expenses"]);
+        setAllowedPaths((user.role === "admin" || user.role === "super_admin") ? ["/dashboard", "/payments", "/budget", "/gold-savings", "/expenses", "/land-savings", "/users", "/user-profile", "/roles-management"] : ["/dashboard", "/payments", "/budget", "/gold-savings", "/expenses", "/land-savings"]);
       }
     };
     fetchPermissions();
@@ -140,7 +141,7 @@ function Admin(props) {
     <BackgroundColorContext.Consumer>
       {({ color, changeColor }) => (
         <React.Fragment>
-          <div className="wrapper">
+          <div className="wrapper admin-layout-with-bottom-nav">
             <Sidebar
               routes={filteredRoutes}
               logo={{
@@ -168,6 +169,7 @@ function Admin(props) {
               // we don't want the Footer to be rendered on map page
               location.pathname === "/admin/maps" ? null : <Footer fluid />
             }
+            <MobileBottomNav allowedPaths={allowedPaths} />
           </div>
           {/* <FixedPlugin bgColor={color} handleBgClick={changeColor} /> */}
         </React.Fragment>

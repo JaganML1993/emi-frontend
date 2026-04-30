@@ -68,7 +68,7 @@ function EditPayment() {
           notes: p.notes || "",
         });
       } catch (e) {
-        setError("Failed to load payment details");
+        setError("Failed to load EMI details");
       } finally {
         setLoading(false);
       }
@@ -125,10 +125,10 @@ function EditPayment() {
         notes: formData.notes || "",
       };
       await api.put(`/api/payments/${id}`, payload, { headers: { Authorization: `Bearer ${token}` } });
-      setSuccess("Payment updated successfully!");
+      setSuccess("EMI updated successfully!");
       setTimeout(() => navigate("/admin/payments"), 1200);
     } catch (e) {
-      setError(e.response?.data?.message || "Failed to update payment");
+      setError(e.response?.data?.message || "Failed to update EMI");
     } finally {
       setSaving(false);
     }
@@ -240,7 +240,7 @@ function EditPayment() {
                     </span>
                   </div>
                   <p className="mb-0" style={{ fontSize: "0.78rem", color: "rgba(255,255,255,0.38)", lineHeight: 1.4 }}>
-                    Adjust amount, schedule, category, or notes — changes apply to this payment
+                    Adjust amount, schedule, category, or notes — changes apply to this EMI
                   </p>
                 </div>
               </div>

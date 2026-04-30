@@ -35,7 +35,6 @@ function UserProfile() {
     currency: "INR",
     monthlyIncome: 0,
     role: "user",
-    houseSavingsGoal: 0,
   });
   const navigate = useNavigate();
 
@@ -57,7 +56,6 @@ function UserProfile() {
           currency: userData.currency || "INR",
           monthlyIncome: userData.monthlyIncome || 0,
           role: userData.role || "user",
-          houseSavingsGoal: userData.houseSavingsGoal || 0,
         });
       }
     } catch (error) {
@@ -190,12 +188,6 @@ function UserProfile() {
         <Row>
           <Col md="6">
             <FormGroup className="mb-4">
-              <label style={labelStyle}>House Savings Goal (₹)</label>
-              <Input name="houseSavingsGoal" value={formData.houseSavingsGoal} onChange={handleChange} placeholder="Target amount" type="number" step="0.01" min="0" style={inputStyle} />
-            </FormGroup>
-          </Col>
-          <Col md="6">
-            <FormGroup className="mb-4">
               <label style={labelStyle}>Role</label>
               <Input name="role" value={formData.role} onChange={handleChange} type="select" disabled={user?.role !== "admin" && user?.role !== "super_admin"} style={inputStyle}>
                 <option value="user">User</option>
@@ -265,7 +257,6 @@ function UserProfile() {
                     { label: "Email", value: user.email },
                     { label: "Currency", value: user.currency },
                     { label: "Monthly Income", value: `${user.currency} ${user.monthlyIncome?.toLocaleString() || 0}` },
-                    { label: "House Savings Goal", value: `₹${(user.houseSavingsGoal || 0).toLocaleString()}` },
                     { label: "Role", value: user.role === "super_admin" ? "Super Admin" : user.role === "admin" ? "Admin" : "User" },
                     { label: "Member Since", value: new Date(user.createdAt).toLocaleDateString() },
                   ].map(({ label, value }) => (
