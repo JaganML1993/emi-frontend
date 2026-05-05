@@ -95,7 +95,8 @@ function Dashboard() {
 
   const fetchExpenseSummary = useCallback(async (months) => {
     try {
-      const res = await api.get("/api/expenses/summary", { params: { months } });
+      const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+      const res = await api.get("/api/expenses/summary", { params: { months, timezone: tz } });
       if (res.data.success) setExpenseSummary(res.data.data);
     } catch { /* non-critical */ }
   }, []);

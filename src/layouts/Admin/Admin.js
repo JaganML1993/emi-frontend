@@ -36,6 +36,11 @@ import { BackgroundColorContext } from "contexts/BackgroundColorContext";
 
 var ps;
 
+/** Chart.js listens to `window` resize; layout toggles (sidebar, panel width) often don't fire it — bump so charts redraw. */
+function bumpChartResize() {
+  window.dispatchEvent(new Event("resize"));
+}
+
 function Admin(props) {
   const location = useLocation();
   const [allowedPaths, setAllowedPaths] = useState(null);
@@ -99,10 +104,41 @@ function Admin(props) {
       mainPanelRef.current.scrollTop = 0;
     }
   }, [location]);
+
+  React.useEffect(() => {
+    let timer;
+    const scheduleBump = () => {
+      clearTimeout(timer);
+      timer = setTimeout(() => bumpChartResize(), 72);
+    };
+
+    const panel = mainPanelRef.current;
+    let ro;
+    if (panel && typeof ResizeObserver !== "undefined") {
+      ro = new ResizeObserver(scheduleBump);
+      ro.observe(panel);
+    }
+
+    const mo = new MutationObserver((records) => {
+      if (records.some((r) => r.attributeName === "class")) scheduleBump();
+    });
+    mo.observe(document.documentElement, { attributes: true, attributeFilter: ["class"] });
+    mo.observe(document.body, { attributes: true, attributeFilter: ["class"] });
+
+    return () => {
+      clearTimeout(timer);
+      ro?.disconnect();
+      mo.disconnect();
+    };
+  }, []);
+
   // this function opens and closes the sidebar on small devices
   const toggleSidebar = () => {
     document.documentElement.classList.toggle("nav-open");
-    setsidebarOpened(!sidebarOpened);
+    setsidebarOpened((prev) => !prev);
+    requestAnimationFrame(() => bumpChartResize());
+    setTimeout(() => bumpChartResize(), 280);
+    setTimeout(() => bumpChartResize(), 520);
   };
   const getRoutes = (routes) => {
     return routes.map((prop, key) => {

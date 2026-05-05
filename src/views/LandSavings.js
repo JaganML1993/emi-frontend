@@ -14,6 +14,7 @@ import {
   Legend,
 } from "chart.js";
 import { Line } from "react-chartjs-2";
+import { format, parseISO } from "date-fns";
 import { getLandPlanMonths, formatLakhs, LAND_PLAN_MONTHS_COUNT } from "../data/landPlan";
 import api from "../config/axios";
 
@@ -143,6 +144,16 @@ function PlanRichText({ text, headline }) {
   );
 }
 
+function formatRecordedAt(iso) {
+  try {
+    const d = typeof iso === "string" ? parseISO(iso) : new Date(iso);
+    if (Number.isNaN(d.getTime())) return "—";
+    return format(d, "dd MMM yyyy · HH:mm");
+  } catch {
+    return "—";
+  }
+}
+
 function mergeProgress(planMonths, savedRows) {
   const byIdx = {};
   (savedRows || []).forEach((r) => {
@@ -151,12 +162,17 @@ function mergeProgress(planMonths, savedRows) {
   let actualCum = 0;
   return planMonths.map((m) => {
     const saved = byIdx[m.planMonthIndex];
-    const amount = saved != null ? Number(saved.amountTransferred) : null;
+    const transferEntries = Array.isArray(saved?.entries) ? saved.entries : [];
+    const amount =
+      saved != null && saved.amountTransferred != null && !Number.isNaN(Number(saved.amountTransferred))
+        ? Number(saved.amountTransferred)
+        : null;
     if (amount != null && !Number.isNaN(amount)) actualCum += amount;
     return {
       ...m,
       savedId: saved?._id,
       amountTransferred: amount,
+      transferEntries,
       notes: saved?.notes || "",
       actualCumulative: actualCum,
       monthVariance: amount != null ? amount - m.target : null,
@@ -185,12 +201,17 @@ export default function LandSavings() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
-  const [modalMonth, setModalMonth] = useState(null);
+  const [modalPlanMonthIndex, setModalPlanMonthIndex] = useState(null);
   const [formAmount, setFormAmount] = useState("");
   const [formNotes, setFormNotes] = useState("");
   const [saving, setSaving] = useState(false);
+  const [deletingEntryId, setDeletingEntryId] = useState(null);
 
   const enriched = useMemo(() => mergeProgress(planMonths, savedRows), [planMonths, savedRows]);
+  const modalRow = useMemo(
+    () => enriched.find((r) => r.planMonthIndex === modalPlanMonthIndex) ?? null,
+    [enriched, modalPlanMonthIndex]
+  );
   const highlightIdx = currentPlanMonthIndex(planMonths);
 
   const totals = useMemo(() => {
@@ -284,54 +305,72 @@ export default function LandSavings() {
   }, [fetchSaved]);
 
   const openModal = (row) => {
-    setModalMonth(row);
-    setFormAmount(row.amountTransferred != null ? String(row.amountTransferred) : "");
-    setFormNotes(row.notes || "");
+    setModalPlanMonthIndex(row.planMonthIndex);
+    setFormAmount("");
+    setFormNotes("");
+    setDeletingEntryId(null);
     setError("");
     setSuccess("");
   };
 
   const closeModal = () => {
-    setModalMonth(null);
+    setModalPlanMonthIndex(null);
     setFormAmount("");
     setFormNotes("");
+    setDeletingEntryId(null);
   };
 
-  const handleSave = async () => {
-    if (!modalMonth) return;
+  const handleAppendTransfer = async () => {
+    if (!modalRow) return;
     const amt = parseFloat(formAmount);
     if (formAmount.trim() === "" || Number.isNaN(amt)) {
-      setError("Enter the amount you transferred (use 0 if none).");
+      setError("Enter the transfer amount.");
       return;
     }
     try {
       setSaving(true);
       setError("");
-      await api.put(`/api/land-savings/month/${modalMonth.planMonthIndex}`, {
-        amountTransferred: amt,
+      await api.post(`/api/land-savings/month/${modalRow.planMonthIndex}/entries`, {
+        amount: amt,
         notes: formNotes.trim(),
       });
-      setSuccess("Saved.");
-      closeModal();
+      setSuccess("Transfer saved.");
+      setFormAmount("");
+      setFormNotes("");
       fetchSaved();
     } catch {
-      setError("Save failed. Try again.");
+      setError("Could not save transfer. Try again.");
     } finally {
       setSaving(false);
     }
   };
 
-  const handleClear = async () => {
-    if (!modalMonth) return;
+  const handleDeleteHistoryEntry = async (entryId) => {
+    if (!modalRow || !entryId) return;
+    try {
+      setDeletingEntryId(entryId);
+      setError("");
+      await api.delete(`/api/land-savings/month/${modalRow.planMonthIndex}/entries/${entryId}`);
+      setSuccess("Removed from history.");
+      fetchSaved();
+    } catch {
+      setError("Could not remove that entry.");
+    } finally {
+      setDeletingEntryId(null);
+    }
+  };
+
+  const handleClearMonth = async () => {
+    if (!modalRow) return;
     try {
       setSaving(true);
       setError("");
-      await api.delete(`/api/land-savings/month/${modalMonth.planMonthIndex}`);
-      setSuccess("Cleared.");
+      await api.delete(`/api/land-savings/month/${modalRow.planMonthIndex}`);
+      setSuccess("Month cleared.");
       closeModal();
       fetchSaved();
     } catch {
-      setError("Could not clear entry.");
+      setError("Could not clear this month.");
     } finally {
       setSaving(false);
     }
@@ -344,7 +383,7 @@ export default function LandSavings() {
         .land-month-card.is-current { border-color: rgba(45,212,191,0.35) !important; box-shadow: 0 0 0 1px rgba(45,212,191,0.15) inset; }
       ` }} />
 
-      {(success || (error && !modalMonth)) && (
+      {(success || (error && modalPlanMonthIndex == null)) && (
         <Row className="mb-3">
           <Col xs="12">
             {success ? (
@@ -352,7 +391,7 @@ export default function LandSavings() {
                 {success}
               </FlashBanner>
             ) : null}
-            {!success && error && !modalMonth ? (
+            {!success && error && modalPlanMonthIndex == null ? (
               <FlashBanner variant="danger" onDismiss={() => setError("")}>
                 {error}
               </FlashBanner>
@@ -516,6 +555,11 @@ export default function LandSavings() {
                               {rupee(m.monthVariance)} vs target
                             </div>
                           )}
+                          {(m.transferEntries?.length || 0) > 1 && (
+                            <div style={{ fontSize: "0.65rem", marginTop: 6, color: "rgba(255,255,255,0.32)", fontWeight: 600 }}>
+                              {m.transferEntries.length} separate transfers · total above
+                            </div>
+                          )}
                         </div>
                         <div>
                           <div style={{ fontSize: "0.65rem", color: "rgba(255,255,255,0.35)", fontWeight: 700, textTransform: "uppercase" }}>Your cumulative</div>
@@ -529,7 +573,7 @@ export default function LandSavings() {
                         onClick={() => openModal(m)}
                       >
                         <i className="tim-icons icon-pencil mr-2" style={{ fontSize: "0.75rem" }} />
-                        {m.amountTransferred != null ? "Update transfer" : "Log transfer"}
+                        {m.amountTransferred != null ? "Manage transfers" : "Log transfer"}
                       </Button>
                     </Col>
                   </Row>
@@ -540,14 +584,73 @@ export default function LandSavings() {
         </Col>
       </Row>
 
-      <Modal isOpen={!!modalMonth} toggle={closeModal} centered size="lg" contentClassName="border-0" style={{ maxWidth: 520 }}>
+      <Modal isOpen={modalPlanMonthIndex != null} toggle={closeModal} centered size="lg" contentClassName="border-0" style={{ maxWidth: 560 }}>
         <ModalBody style={{ background: "linear-gradient(165deg, #18181c 0%, #141416 100%)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 16, padding: "1.35rem 1.5rem", color: "#fff" }}>
-          {modalMonth && (
+          {modalRow && (
             <>
-              <div style={{ fontWeight: 800, fontSize: "1.05rem", marginBottom: 4 }}>{modalMonth.monthLong}</div>
-              <div style={{ fontSize: "0.78rem", color: "rgba(255,255,255,0.4)", marginBottom: 16 }}>
-                Month {modalMonth.planMonthIndex} · Target {rupee(modalMonth.target)} · Plan cumulative {rupee(modalMonth.plannedCumulative)} ({formatLakhs(modalMonth.plannedCumulative)})
+              <div style={{ fontWeight: 800, fontSize: "1.05rem", marginBottom: 4 }}>{modalRow.monthLong}</div>
+              <div style={{ fontSize: "0.78rem", color: "rgba(255,255,255,0.4)", marginBottom: 12 }}>
+                Month {modalRow.planMonthIndex} · Target {rupee(modalRow.target)} · Plan cumulative {rupee(modalRow.plannedCumulative)} ({formatLakhs(modalRow.plannedCumulative)})
               </div>
+              <div style={{ fontSize: "0.72rem", color: accentAmber, fontWeight: 700, marginBottom: 14 }}>
+                Month-to-date total: {modalRow.amountTransferred != null ? rupee(modalRow.amountTransferred) : rupee(0)}
+              </div>
+
+              <div style={{ marginBottom: 14 }}>
+                <div style={{ fontSize: "0.72rem", fontWeight: 700, color: "rgba(255,255,255,0.45)", textTransform: "uppercase", marginBottom: 8 }}>
+                  Transfer history
+                </div>
+                {(modalRow.transferEntries?.length || 0) === 0 ? (
+                  <div style={{ fontSize: "0.82rem", color: "rgba(255,255,255,0.28)", padding: "12px 10px", borderRadius: 10, border: "1px dashed rgba(255,255,255,0.12)", background: "rgba(0,0,0,0.15)" }}>
+                    No transfers logged yet for this month. Add one below.
+                  </div>
+                ) : (
+                  <div style={{ maxHeight: 220, overflowY: "auto", borderRadius: 10, border: "1px solid rgba(255,255,255,0.08)", background: "rgba(0,0,0,0.18)" }}>
+                    {(modalRow.transferEntries || []).map((e) => (
+                      <div
+                        key={e._id}
+                        style={{
+                          display: "flex",
+                          alignItems: "flex-start",
+                          justifyContent: "space-between",
+                          gap: 10,
+                          padding: "10px 12px",
+                          borderBottom: "1px solid rgba(255,255,255,0.06)",
+                        }}
+                      >
+                        <div style={{ minWidth: 0 }}>
+                          <div style={{ fontWeight: 800, color: accentAmber, fontSize: "0.95rem" }}>{rupee(e.amount)}</div>
+                          <div style={{ fontSize: "0.68rem", color: "rgba(255,255,255,0.35)", marginTop: 2 }}>{formatRecordedAt(e.recordedAt)}</div>
+                          {e.notes ? (
+                            <div style={{ fontSize: "0.78rem", color: "rgba(255,255,255,0.5)", marginTop: 6, lineHeight: 1.4 }}>{e.notes}</div>
+                          ) : null}
+                        </div>
+                        <button
+                          type="button"
+                          aria-label="Remove transfer"
+                          onClick={() => handleDeleteHistoryEntry(e._id)}
+                          disabled={saving || deletingEntryId === e._id}
+                          style={{
+                            flexShrink: 0,
+                            background: "rgba(239,68,68,0.12)",
+                            border: "1px solid rgba(239,68,68,0.35)",
+                            color: "#fca5a5",
+                            borderRadius: 8,
+                            padding: "4px 10px",
+                            fontSize: "0.7rem",
+                            fontWeight: 700,
+                            cursor: saving ? "default" : "pointer",
+                            opacity: saving ? 0.5 : 1,
+                          }}
+                        >
+                          {deletingEntryId === e._id ? "…" : "Remove"}
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
               {error && (
                 <div
                   role="alert"
@@ -567,29 +670,34 @@ export default function LandSavings() {
               )}
               <div className="mb-3">
                 <Label style={{ color: "rgba(255,255,255,0.45)", fontSize: "0.72rem", fontWeight: 700, textTransform: "uppercase" }}>
-                  Amount you transferred (₹)
+                  Add another transfer (₹)
                 </Label>
-                <Input type="number" step="1" value={formAmount} onChange={(e) => setFormAmount(e.target.value)} style={inputDark} placeholder="e.g. 29061" />
+                <Input type="number" step="1" value={formAmount} onChange={(ev) => setFormAmount(ev.target.value)} style={inputDark} placeholder="Amount moved to land fund" />
                 <div style={{ fontSize: "0.72rem", color: "rgba(255,255,255,0.32)", marginTop: 6 }}>
-                  Use the exact amount you moved to the land fund. Can be higher or lower than target. Negative only if you need to correct a prior entry (e.g. refund).
+                  Each save adds a line to history. The monthly total is the sum of all lines for this month.
                 </div>
               </div>
               <div className="mb-4">
                 <Label style={{ color: "rgba(255,255,255,0.45)", fontSize: "0.72rem", fontWeight: 700, textTransform: "uppercase" }}>Notes (optional)</Label>
-                <Input type="textarea" rows={3} value={formNotes} onChange={(e) => setFormNotes(e.target.value)} style={inputDark} placeholder="EMI freed, FD, etc." />
+                <Input type="textarea" rows={2} value={formNotes} onChange={(ev) => setFormNotes(ev.target.value)} style={inputDark} placeholder="Salary slice, FD, bonus…" />
               </div>
               <div style={{ display: "flex", flexWrap: "wrap", gap: 10, justifyContent: "space-between" }}>
                 <div style={{ display: "flex", gap: 10 }}>
-                  <Button color="primary" style={{ background: accent, border: "none", color: "#0f172a", fontWeight: 700 }} onClick={handleSave} disabled={saving}>
-                    {saving ? "Saving…" : "Save"}
+                  <Button
+                    color="primary"
+                    style={{ background: accent, border: "none", color: "#0f172a", fontWeight: 700 }}
+                    onClick={handleAppendTransfer}
+                    disabled={saving || !!deletingEntryId}
+                  >
+                    {saving ? "Saving…" : "Add transfer"}
                   </Button>
-                  <Button outline style={{ borderColor: "rgba(255,255,255,0.2)", color: "rgba(255,255,255,0.7)" }} onClick={closeModal} disabled={saving}>
-                    Cancel
+                  <Button outline style={{ borderColor: "rgba(255,255,255,0.2)", color: "rgba(255,255,255,0.7)" }} onClick={closeModal} disabled={saving || !!deletingEntryId}>
+                    Close
                   </Button>
                 </div>
-                {modalMonth.amountTransferred != null && (
-                  <Button outline color="danger" onClick={handleClear} disabled={saving}>
-                    Clear month
+                {modalRow.amountTransferred != null && (
+                  <Button outline color="danger" onClick={handleClearMonth} disabled={saving || !!deletingEntryId}>
+                    Clear entire month
                   </Button>
                 )}
               </div>

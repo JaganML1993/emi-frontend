@@ -89,7 +89,7 @@ function Payments() {
   const navigate = useNavigate();
   const [emis, setEmis] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [forecastMonths, setForecastMonths] = useState(6);
+  const [forecastMonths, setForecastMonths] = useState(12);
 
   const fetchPayments = useCallback(async () => {
     try {
@@ -377,7 +377,7 @@ function Payments() {
                         EMI Forecast
                       </CardTitle>
                       <p className="mb-0" style={{ fontSize: "0.71rem", color: "rgba(255,255,255,0.3)", marginTop: 1 }}>
-                        Month-wise totals from current month
+                        Month-wise totals from current month · defaults to 1 year
                       </p>
                     </div>
                   </div>

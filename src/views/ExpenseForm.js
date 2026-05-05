@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import {
   Card, CardHeader, CardBody, CardTitle,
@@ -6,6 +6,7 @@ import {
 } from "reactstrap";
 import { format } from "date-fns";
 import api from "../config/axios";
+import { EXPENSE_CATEGORY_VALUES } from "../constants/expenseCategories";
 
 const PAYMENT_MODES = [
   { value: "upi", label: "UPI" },
@@ -13,12 +14,6 @@ const PAYMENT_MODES = [
   { value: "card", label: "Card" },
   { value: "bank_transfer", label: "Bank Transfer" },
   { value: "other", label: "Other" },
-];
-
-const DEFAULT_CATEGORIES = [
-  "Food & Dining", "Transport", "Shopping", "Bills & Utilities",
-  "Entertainment", "Health & Medical", "Education", "Travel",
-  "Groceries", "Personal Care", "Investment", "Other",
 ];
 
 const emptyForm = {
@@ -99,9 +94,7 @@ function ExpenseForm() {
   const [saving, setSaving]     = useState(false);
   const [error, setError]       = useState("");
   const [isDirty, setIsDirty]   = useState(false);
-  const [categoryInput, setCategoryInput] = useState("");
-  const [showCatSuggestions, setShowCatSuggestions] = useState(false);
-  const [userCategories, setUserCategories] = useState([]);
+  const [catalogCategories, setCatalogCategories] = useState(EXPENSE_CATEGORY_VALUES);
   const [nameSuggestions, setNameSuggestions] = useState([]);
   const [showNameSuggestions, setShowNameSuggestions] = useState(false);
   const [nameDebounce, setNameDebounce] = useState(null);
@@ -117,8 +110,9 @@ function ExpenseForm() {
   }, [isDirty]);
 
   useEffect(() => {
-    api.get("/api/expenses/categories").then(res => {
-      if (res.data.success) setUserCategories(res.data.data);
+    api.get("/api/expenses/categories").then((res) => {
+      if (res.data.success && Array.isArray(res.data.data) && res.data.data.length)
+        setCatalogCategories(res.data.data);
     }).catch(() => {});
     api.get("/api/expenses/names").then(res => {
       if (res.data.success) setNameSuggestions(res.data.data);
@@ -150,12 +144,11 @@ function ExpenseForm() {
             date:        format(new Date(e.date), "yyyy-MM-dd"),
             name:        e.name,
             amount:      String(e.amount),
-            category:    e.category,
+            category:    e.category || "",
             paymentMode: e.paymentMode,
             type:        e.type,
             notes:       e.notes || "",
           });
-          setCategoryInput(e.category);
         }
       } catch { setError("Failed to load entry."); }
       finally { setLoading(false); }
@@ -168,17 +161,19 @@ function ExpenseForm() {
     setFormData(f => ({ ...f, [field]: e.target.value }));
   };
 
-  const allCategories = [...new Set([...DEFAULT_CATEGORIES, ...userCategories])];
-  const filteredCats = categoryInput
-    ? allCategories.filter(c => c.toLowerCase().includes(categoryInput.toLowerCase()))
-    : allCategories;
+  const categoryOptions = useMemo(() => {
+    const base = [...catalogCategories];
+    if (formData.category && !base.includes(formData.category))
+      return [formData.category, ...base];
+    return base;
+  }, [catalogCategories, formData.category]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
     if (!formData.name.trim()) { setError("Please enter a name."); return; }
     if (!formData.amount || parseFloat(formData.amount) <= 0) { setError("Amount must be greater than 0."); return; }
-    if (!formData.category.trim()) { setError("Please select or enter a category."); return; }
+    if (!formData.category.trim()) { setError("Please select a category."); return; }
 
     try {
       setSaving(true);
@@ -328,37 +323,23 @@ function ExpenseForm() {
 
                 <Row>
                   <Col md="6">
-                    <FormGroup style={{ position: "relative" }}>
+                    <FormGroup>
                       <Label style={labelStyle}>Category *</Label>
                       <Input
-                        type="text"
-                        placeholder="e.g. Food & Dining"
-                        value={categoryInput}
+                        type="select"
+                        value={formData.category}
                         onChange={(e) => {
                           setIsDirty(true);
-                          setCategoryInput(e.target.value);
-                          setFormData(f => ({ ...f, category: e.target.value }));
-                          setShowCatSuggestions(true);
+                          setFormData((f) => ({ ...f, category: e.target.value }));
                         }}
-                        onFocus={() => setShowCatSuggestions(true)}
-                        onBlur={() => setTimeout(() => setShowCatSuggestions(false), 150)}
-                        style={inputStyle}
-                      />
-                      {showCatSuggestions && filteredCats.length > 0 && (
-                        <div style={{ ...suggestPanelStyle, zIndex: 100, maxHeight: 200, top: "100%" }}>
-                          {filteredCats.map(cat => (
-                            <div
-                              key={cat}
-                              onMouseDown={() => { setCategoryInput(cat); setFormData(f => ({ ...f, category: cat })); setShowCatSuggestions(false); setIsDirty(true); }}
-                              style={{ padding: "9px 14px", cursor: "pointer", color: "rgba(255,255,255,0.65)", fontSize: "0.85rem", borderBottom: "1px solid rgba(255,255,255,0.05)" }}
-                              onMouseEnter={e => e.currentTarget.style.background = "rgba(255,255,255,0.06)"}
-                              onMouseLeave={e => e.currentTarget.style.background = "transparent"}
-                            >
-                              {cat}
-                            </div>
-                          ))}
-                        </div>
-                      )}
+                        required
+                        style={{ ...inputStyle, colorScheme: "dark" }}
+                      >
+                        <option value="">Select category</option>
+                        {categoryOptions.map((c) => (
+                          <option key={c} value={c}>{c}</option>
+                        ))}
+                      </Input>
                     </FormGroup>
                   </Col>
                   <Col md="6">

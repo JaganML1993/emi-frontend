@@ -2,19 +2,107 @@ import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Card, CardHeader, CardBody, CardTitle,
-  Row, Col, Button, Modal, ModalBody, Alert,
+  Row, Col, Button, Modal, ModalBody, Alert, Collapse,
 } from "reactstrap";
 import { format, subMonths, startOfMonth, endOfMonth } from "date-fns";
 import {
   Chart as ChartJS,
-  CategoryScale, LinearScale, PointElement, LineElement, Filler, Tooltip, Legend,
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  BarElement,
+  BarController,
+  Filler,
+  Tooltip,
+  Legend,
 } from "chart.js";
-import { Line } from "react-chartjs-2";
+import { Line, Bar } from "react-chartjs-2";
 import api from "../config/axios";
 
-ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Filler, Tooltip, Legend);
+/** Red monochrome ramp by bar index: largest amounts first (sorted slices) → darkest red … pale rose (donut-style single hue). */
+function redRampCategoryBarStyles(barCount) {
+  const fills = [];
+  const hovers = [];
+  const rDark = 118;
+  const gDark = 10;
+  const bDark = 18;
+  const rLight = 253;
+  const gLight = 216;
+  const bLight = 219;
+
+  for (let i = 0; i < barCount; i++) {
+    const u = barCount <= 1 ? 0 : i / (barCount - 1);
+    const r = Math.round(rDark + (rLight - rDark) * u);
+    const g = Math.round(gDark + (gLight - gDark) * u);
+    const b = Math.round(bDark + (bLight - bDark) * u);
+    fills.push(`rgba(${r},${g},${b},0.92)`);
+    hovers.push(`rgba(${Math.min(255, r + 16)},${Math.min(255, g + 14)},${Math.min(255, b + 12)},0.98)`);
+  }
+  return { fills, hovers };
+}
+
+/** ₹ labels on horizontal category bars (inside bar when wide enough, else beside). */
+const categoryBarSpendLabelsPlugin = {
+  id: "categoryBarSpendLabels",
+  afterDatasetsDraw(chart) {
+    const opts = chart.options.plugins?.categoryBarSpendLabels;
+    if (opts?.enabled === false || chart.options.indexAxis !== "y") return;
+    const meta = chart.getDatasetMeta(0);
+    const values = chart.data.datasets?.[0]?.data;
+    if (!meta?.data?.length || !values?.length) return;
+    const ctx = chart.ctx;
+    const { chartArea } = chart;
+    const nBars = meta.data.length;
+    meta.data.forEach((bar, i) => {
+      if (!bar || bar.hidden || bar.skip) return;
+      const paleRatio = nBars <= 1 ? 0 : i / (nBars - 1);
+      const paleBar = paleRatio >= 0.55;
+      const v = Number(values[i]) || 0;
+      const text = `\u20B9${v.toLocaleString("en-IN", { maximumFractionDigits: 0 })}`;
+      const left = Math.min(bar.base, bar.x);
+      const right = Math.max(bar.base, bar.x);
+      const cy = bar.y;
+      const bw = right - left;
+      ctx.save();
+      ctx.font = '600 11px system-ui, -apple-system, "Segoe UI", sans-serif';
+      ctx.textBaseline = "middle";
+      const tw = ctx.measureText(text).width;
+      const gap = 8;
+      if (bw >= tw + gap * 2) {
+        ctx.textAlign = "right";
+        ctx.fillStyle = paleBar ? "rgba(88,12,18,0.95)" : "rgba(255,255,255,0.94)";
+        ctx.fillText(text, right - gap, cy);
+      } else if (right + tw + gap <= chartArea.right - 2) {
+        ctx.textAlign = "left";
+        ctx.fillStyle = paleBar ? "rgba(255,245,246,0.88)" : "rgba(255,255,255,0.72)";
+        ctx.fillText(text, right + gap, cy);
+      } else {
+        ctx.textAlign = "right";
+        ctx.fillStyle = paleBar ? "rgba(255,235,237,0.82)" : "rgba(255,255,255,0.72)";
+        ctx.fillText(text, Math.max(chartArea.left + tw + gap, left - gap), cy);
+      }
+      ctx.restore();
+    });
+  },
+};
+
+ChartJS.register(
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  BarController,
+  BarElement,
+  Filler,
+  Tooltip,
+  Legend,
+  categoryBarSpendLabelsPlugin,
+);
 
 const accentAmber = "#FFA02E";
+
+const PIE_MAX_SLICES = 10;
 
 const cardStyle = {
   background: "linear-gradient(165deg, #18181c 0%, #141416 50%, #121214 100%)",
@@ -69,7 +157,7 @@ const PRESETS = [
 
 function applyPreset(key) {
   const now = new Date();
-  if (key === "this_month") return { from: format(startOfMonth(now), "yyyy-MM-dd"), to: format(now, "yyyy-MM-dd") };
+  if (key === "this_month") return { from: format(startOfMonth(now), "yyyy-MM-dd"), to: format(endOfMonth(now), "yyyy-MM-dd") };
   if (key === "last_month") {
     const lm = subMonths(now, 1);
     return { from: format(startOfMonth(lm), "yyyy-MM-dd"), to: format(endOfMonth(lm), "yyyy-MM-dd") };
@@ -80,6 +168,15 @@ function applyPreset(key) {
 }
 
 const PAGE_SIZE = 25;
+
+/** Match backend: explicit type, else category "Savings" (trimmed) when type is missing. */
+function rowEffectiveType(e) {
+  if (e.type === "savings") return "savings";
+  if (e.type === "expense") return "expense";
+  const c = (e.category || "").trim().toLowerCase();
+  if (c === "savings") return "savings";
+  return "expense";
+}
 
 function Expenses() {
   const navigate = useNavigate();
@@ -94,10 +191,24 @@ function Expenses() {
 
   const [activePreset, setActivePreset] = useState("this_month");
   const [filterFrom, setFilterFrom]   = useState(format(startOfMonth(new Date()), "yyyy-MM-dd"));
-  const [filterTo, setFilterTo]       = useState(format(new Date(), "yyyy-MM-dd"));
+  const [filterTo, setFilterTo]       = useState(format(endOfMonth(new Date()), "yyyy-MM-dd"));
   const [filterType, setFilterType]   = useState("");
   const [filterCategory, setFilterCategory] = useState("");
   const [showCustom, setShowCustom]   = useState(false);
+  const [dailyChartOpen, setDailyChartOpen] = useState(false);
+  const [categoryChartOpen, setCategoryChartOpen] = useState(false);
+
+  const bumpChartsAfterExpand = () => {
+    requestAnimationFrame(() => window.dispatchEvent(new Event("resize")));
+    setTimeout(() => window.dispatchEvent(new Event("resize")), 320);
+  };
+
+  const chartCollapseHeaderKeys = (e, setOpen) => {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      setOpen((v) => !v);
+    }
+  };
 
   const handlePreset = (key) => {
     setActivePreset(key);
@@ -131,7 +242,8 @@ function Expenses() {
 
   const fetchSummary = useCallback(async () => {
     try {
-      const res = await api.get("/api/expenses/summary", { params: { months: 1 } });
+      const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+      const res = await api.get("/api/expenses/summary", { params: { months: 1, timezone: tz } });
       if (res.data.success) setSummary(res.data.data);
     } catch { /* non-critical */ }
   }, []);
@@ -155,8 +267,8 @@ function Expenses() {
     }
   };
 
-  const filteredExpenseTotal = useMemo(() => entries.filter(e => e.type === "expense").reduce((s, e) => s + e.amount, 0), [entries]);
-  const filteredSavingsTotal = useMemo(() => entries.filter(e => e.type === "savings").reduce((s, e) => s + e.amount, 0), [entries]);
+  const filteredExpenseTotal = useMemo(() => entries.filter(e => rowEffectiveType(e) === "expense").reduce((s, e) => s + e.amount, 0), [entries]);
+  const filteredSavingsTotal = useMemo(() => entries.filter(e => rowEffectiveType(e) === "savings").reduce((s, e) => s + e.amount, 0), [entries]);
 
   const chartData = useMemo(() => {
     if (!summary?.dailyExpenseData?.length) return null;
@@ -167,15 +279,15 @@ function Expenses() {
         {
           label: "Expenses",
           data: dd.map(d => d.expense),
-          borderColor: "rgba(248,113,113,0.95)",
-          backgroundColor: "rgba(248,113,113,0.12)",
+          borderColor: "rgba(248,113,113,0.72)",
+          backgroundColor: "rgba(248,113,113,0.07)",
           borderWidth: 2,
           fill: true,
           tension: 0.35,
           pointRadius: 3,
           pointHoverRadius: 5,
-          pointBackgroundColor: "rgba(248,113,113,0.95)",
-          pointBorderColor: "#18181c",
+          pointBackgroundColor: "rgba(248,113,113,0.82)",
+          pointBorderColor: "rgba(255,255,255,0.35)",
           pointBorderWidth: 1,
         },
       ],
@@ -187,7 +299,14 @@ function Expenses() {
     maintainAspectRatio: true,
     plugins: {
       legend: { labels: { color: "rgba(255,255,255,0.4)", font: { size: 11 }, boxWidth: 12, padding: 12 } },
-      tooltip: { backgroundColor: "#18181c", borderColor: "rgba(255,160,46,0.2)", borderWidth: 1, titleColor: "rgba(255,255,255,0.9)", bodyColor: "rgba(255,255,255,0.55)", callbacks: { label: ctx => ` ₹${(ctx.parsed?.y ?? ctx.raw).toLocaleString("en-IN")}` } },
+      tooltip: {
+        backgroundColor: "rgba(24,24,30,0.92)",
+        borderColor: "rgba(255,255,255,0.14)",
+        borderWidth: 1,
+        titleColor: "rgba(255,255,255,0.88)",
+        bodyColor: "rgba(255,255,255,0.52)",
+        callbacks: { label: ctx => ` ₹${(ctx.parsed?.y ?? ctx.raw).toLocaleString("en-IN")}` },
+      },
     },
     scales: {
       x: {
@@ -203,6 +322,127 @@ function Expenses() {
       y: { grid: { color: "rgba(255,255,255,0.04)" }, ticks: { color: "rgba(255,255,255,0.35)", font: { size: 11 }, callback: v => `\u20B9${Number(v).toLocaleString("en-IN")}` } },
     },
   };
+
+  const categoryBarSlices = useMemo(() => {
+    const rows = summary?.topCategories;
+    if (!Array.isArray(rows) || rows.length === 0) return [];
+    const sorted = [...rows].sort((a, b) => (Number(b.total) || 0) - (Number(a.total) || 0));
+    const head = sorted.slice(0, PIE_MAX_SLICES);
+    const tail = sorted.slice(PIE_MAX_SLICES);
+    const otherTotal = tail.reduce((s, r) => s + (Number(r.total) || 0), 0);
+    const slices = head.map((r) => ({
+      label: (r._id && String(r._id).trim()) ? String(r._id).trim() : "Uncategorized",
+      total: Number(r.total) || 0,
+    }));
+    if (otherTotal > 0) slices.push({ label: "Other", total: otherTotal });
+    return slices;
+  }, [summary]);
+
+  const categoryBarHeight = useMemo(() => {
+    const n = categoryBarSlices.length;
+    if (!n) return 280;
+    return Math.min(560, Math.max(240, 56 + n * 44));
+  }, [categoryBarSlices.length]);
+
+  const categoryBarMax = useMemo(() => {
+    if (!categoryBarSlices.length) return 1;
+    const totals = categoryBarSlices.map((s) => Math.max(0, Number(s.total) || 0));
+    return Math.max(...totals, 1);
+  }, [categoryBarSlices]);
+
+  const categoryBarData = useMemo(() => {
+    if (!categoryBarSlices.length) return null;
+    const totals = categoryBarSlices.map((s) => s.total);
+    const { fills, hovers } = redRampCategoryBarStyles(totals.length);
+    return {
+      labels: categoryBarSlices.map((s) => s.label),
+      datasets: [
+        {
+          label: "Spent",
+          data: totals,
+          backgroundColor: fills,
+          borderWidth: 0,
+          borderRadius: 0,
+          borderSkipped: false,
+          hoverBackgroundColor: hovers,
+          hoverBorderWidth: 0,
+          maxBarThickness: 34,
+          barPercentage: 0.88,
+          categoryPercentage: 0.94,
+        },
+      ],
+    };
+  }, [categoryBarSlices]);
+
+  const categoryBarOptions = useMemo(() => {
+    const maxVal = categoryBarMax;
+    return {
+      indexAxis: "y",
+      responsive: true,
+      maintainAspectRatio: false,
+      layout: {
+        padding: { left: 6, right: 18, top: 8, bottom: 8 },
+      },
+      plugins: {
+        legend: { display: false },
+        categoryBarSpendLabels: {
+          enabled: true,
+        },
+        tooltip: {
+          backgroundColor: "rgba(28,26,34,0.92)",
+          borderColor: "rgba(255,255,255,0.14)",
+          borderWidth: 1,
+          titleColor: "rgba(255,255,255,0.9)",
+          bodyColor: "rgba(255,255,255,0.58)",
+          callbacks: {
+            title: (items) => (items[0]?.label ? String(items[0].label) : ""),
+            label: (ctx) => {
+              const v = Number(ctx.parsed?.x ?? ctx.raw) || 0;
+              const vsTop = maxVal ? ((v / maxVal) * 100).toFixed(1) : "0";
+              const arr = ctx.chart?.data?.datasets?.[0]?.data || [];
+              const sum = arr.reduce((a, x) => a + Number(x), 0);
+              const pctAll = sum ? ((v / sum) * 100).toFixed(1) : "0";
+              return ` ₹${v.toLocaleString("en-IN", { maximumFractionDigits: 0 })} · ${vsTop}% of top · ${pctAll}% of shown total`;
+            },
+          },
+        },
+      },
+      scales: {
+        x: {
+          min: 0,
+          max: maxVal,
+          stacked: false,
+          grid: { color: "rgba(255,255,255,0.055)", drawBorder: false },
+          ticks: {
+            color: "rgba(255,255,255,0.36)",
+            font: { size: 10 },
+            maxTicksLimit: 8,
+            callback: (value) => `\u20B9${Number(value).toLocaleString("en-IN", { maximumFractionDigits: 0 })}`,
+          },
+        },
+        y: {
+          stacked: false,
+          grid: { display: false, drawBorder: false },
+          ticks: {
+            color: "rgba(255,255,255,0.88)",
+            font: { size: 11 },
+            autoSkip: false,
+            padding: 10,
+          },
+        },
+      },
+      elements: {
+        bar: {
+          borderRadius: 4,
+        },
+      },
+      interaction: {
+        mode: "index",
+        axis: "y",
+        intersect: false,
+      },
+    };
+  }, [categoryBarMax]);
 
   const thisMonthExpense = summary?.thisMonth?.expense?.total || 0;
   const lastMonthExpense = summary?.lastMonth?.expense?.total || 0;
@@ -231,6 +471,41 @@ function Expenses() {
           box-shadow: 0 4px 32px rgba(0,0,0,0.45), 0 0 0 1px rgba(255,160,46,0.06) inset;
           overflow: hidden;
         }
+        .exp-charts-row > [class*="col-"] {
+          min-width: 0;
+        }
+        .exp-glass-chart-well {
+          background: linear-gradient(145deg, rgba(255,255,255,0.055) 0%, rgba(255,255,255,0.022) 42%, rgba(0,0,0,0.2) 100%);
+          border: 1px solid rgba(255,255,255,0.075);
+          border-radius: 14px;
+          box-shadow: inset 0 1px 0 rgba(255,255,255,0.06), 0 10px 40px rgba(0,0,0,0.22);
+        }
+        @supports ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) {
+          .exp-glass-chart-well {
+            -webkit-backdrop-filter: blur(16px);
+            backdrop-filter: blur(16px);
+          }
+        }
+        .exp-category-bar-wrap {
+          width: 100%;
+          max-width: 100%;
+          min-width: 0;
+          padding: 6px 8px 8px;
+          box-sizing: border-box;
+          overflow-x: auto;
+          overflow-y: hidden;
+        }
+        .exp-category-bar-wrap canvas {
+          filter: drop-shadow(0 4px 14px rgba(0,0,0,0.35));
+        }
+        .exp-chart-collapse-header {
+          cursor: pointer;
+          user-select: none;
+        }
+        .exp-chart-collapse-header:focus-visible {
+          outline: 2px solid rgba(251, 191, 36, 0.45);
+          outline-offset: 2px;
+        }
       ` }} />
 
       {(error || success) && (
@@ -252,7 +527,7 @@ function Expenses() {
 
       <Row className="mb-3 mb-lg-4 dash-summary-stat-row exp-section">
         {[
-          { icon: "icon-money-coins", label: "This Month Expenses", value: `\u20B9${thisMonthExpense.toLocaleString("en-IN", { maximumFractionDigits: 0 })}`, sub: `${summary?.thisMonth?.expense?.count || 0} entries`, accent: "#ff5a5a" },
+          { icon: "icon-money-coins", label: "This Month Expenses", value: `\u20B9${thisMonthExpense.toLocaleString("en-IN", { maximumFractionDigits: 0 })}`, sub: `${summary?.thisMonth?.expense?.count || 0} entries · summed by txn date`, accent: "#ff5a5a" },
           {
             icon: "icon-time-alarm",
             label: "Last Month Expenses",
@@ -267,7 +542,7 @@ function Expenses() {
             ) : null,
             accent: "#6366f1",
           },
-          { icon: "icon-bank", label: "This Month Savings", value: `\u20B9${(summary?.thisMonth?.savings?.total || 0).toLocaleString("en-IN", { maximumFractionDigits: 0 })}`, sub: `${summary?.thisMonth?.savings?.count || 0} entries`, accent: "#10b981" },
+          { icon: "icon-bank", label: "This Month Savings", value: `\u20B9${(summary?.thisMonth?.savings?.total || 0).toLocaleString("en-IN", { maximumFractionDigits: 0 })}`, sub: `${summary?.thisMonth?.savings?.count || 0} entries · summed by txn date`, accent: "#10b981" },
           { icon: "icon-chart-bar-32", label: "Top Category", value: summary?.topCategories?.[0]?._id || "\u2014", sub: summary?.topCategories?.[0] ? `\u20B9${summary.topCategories[0].total.toLocaleString("en-IN", { maximumFractionDigits: 0 })}` : null, accent: accentAmber },
         ].map(({ icon, label, value, sub, accent }) => (
           <Col xs="12" sm="6" lg="3" className="mb-lg-0 dash-summary-stat-col" key={label}>
@@ -301,23 +576,77 @@ function Expenses() {
         ))}
       </Row>
 
-      <Row className="exp-section">
-        <Col xs="12">
+      <Row className="exp-section exp-charts-row">
+        <Col xs="12" lg="7">
           <Card style={{ ...cardStyle, marginBottom: 20 }}>
-            <CardHeader style={headerStyle}>
-              <CardTitle tag="h5" style={{ color: "#fff", margin: 0, fontSize: "0.98rem", fontWeight: 800, letterSpacing: "-0.02em", display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-                <i className="tim-icons icon-chart-bar-32" style={{ color: "#fbbf24" }} />
-                <span>
-                  Daily expenses
-                  <span style={{ display: "block", fontSize: "0.72rem", fontWeight: 600, color: "rgba(255,255,255,0.38)", marginTop: 4, letterSpacing: "0.04em" }}>
-                    {format(new Date(), "MMMM yyyy")} · expense entries only
+            <CardHeader
+              className="exp-chart-collapse-header"
+              style={headerStyle}
+              role="button"
+              tabIndex={0}
+              aria-expanded={dailyChartOpen}
+              aria-controls="expenses-daily-chart-panel"
+              onClick={() => setDailyChartOpen((v) => !v)}
+              onKeyDown={(e) => chartCollapseHeaderKeys(e, setDailyChartOpen)}
+            >
+              <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, width: "100%" }}>
+                <CardTitle tag="h5" style={{ color: "#fff", margin: 0, fontSize: "0.98rem", fontWeight: 800, letterSpacing: "-0.02em", display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", flex: "1 1 auto", minWidth: 0 }}>
+                  <i className="tim-icons icon-chart-bar-32" style={{ color: "#fbbf24" }} />
+                  <span>
+                    Daily expenses
+                    <span style={{ display: "block", fontSize: "0.72rem", fontWeight: 600, color: "rgba(255,255,255,0.38)", marginTop: 4, letterSpacing: "0.04em" }}>
+                      {format(new Date(), "MMMM yyyy")} · expense entries only · click header to {dailyChartOpen ? "hide" : "show"} chart
+                    </span>
                   </span>
-                </span>
-              </CardTitle>
+                </CardTitle>
+                <i className={`tim-icons ${dailyChartOpen ? "icon-minimal-up" : "icon-minimal-down"}`} style={{ color: "rgba(255,255,255,0.45)", fontSize: "1.05rem", marginTop: 6, flexShrink: 0 }} aria-hidden />
+              </div>
             </CardHeader>
-            <CardBody style={{ padding: "1rem 1.2rem 0.9rem", background: "rgba(0,0,0,0.14)" }}>
-              {chartData ? <Line data={chartData} options={chartOptions} style={{ maxHeight: 240 }} /> : <div style={{ textAlign: "center", color: "rgba(255,255,255,0.28)", padding: "2rem", fontSize: "0.85rem" }}>No data for this period</div>}
-            </CardBody>
+            <Collapse isOpen={dailyChartOpen} onEntered={bumpChartsAfterExpand}>
+              <CardBody id="expenses-daily-chart-panel" style={{ padding: "10px 12px 12px", background: "rgba(0,0,0,0.06)" }}>
+                <div className="exp-glass-chart-well" style={{ padding: "12px 14px 10px" }}>
+                  {chartData ? <Line data={chartData} options={chartOptions} style={{ maxHeight: 260 }} /> : <div style={{ textAlign: "center", color: "rgba(255,255,255,0.28)", padding: "2rem", fontSize: "0.85rem" }}>No data for this period</div>}
+                </div>
+              </CardBody>
+            </Collapse>
+          </Card>
+        </Col>
+        <Col xs="12" lg="5">
+          <Card style={{ ...cardStyle, marginBottom: 20 }}>
+            <CardHeader
+              className="exp-chart-collapse-header"
+              style={headerStyle}
+              role="button"
+              tabIndex={0}
+              aria-expanded={categoryChartOpen}
+              aria-controls="expenses-category-chart-panel"
+              onClick={() => setCategoryChartOpen((v) => !v)}
+              onKeyDown={(e) => chartCollapseHeaderKeys(e, setCategoryChartOpen)}
+            >
+              <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, width: "100%" }}>
+                <CardTitle tag="h5" style={{ color: "#fff", margin: 0, fontSize: "0.98rem", fontWeight: 800, letterSpacing: "-0.02em", display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", flex: "1 1 auto", minWidth: 0 }}>
+                  <i className="tim-icons icon-chart-bar-32" style={{ color: "#fbbf24" }} />
+                  <span>
+                    Expenses by category
+                    <span style={{ display: "block", fontSize: "0.72rem", fontWeight: 600, color: "rgba(255,255,255,0.38)", marginTop: 4, letterSpacing: "0.04em" }}>
+                      {format(new Date(), "MMMM yyyy")} · red ramp · darker = larger spend · top {PIE_MAX_SLICES} + Other · click header to {categoryChartOpen ? "hide" : "show"} chart
+                    </span>
+                  </span>
+                </CardTitle>
+                <i className={`tim-icons ${categoryChartOpen ? "icon-minimal-up" : "icon-minimal-down"}`} style={{ color: "rgba(255,255,255,0.45)", fontSize: "1.05rem", marginTop: 6, flexShrink: 0 }} aria-hidden />
+              </div>
+            </CardHeader>
+            <Collapse isOpen={categoryChartOpen} onEntered={bumpChartsAfterExpand}>
+              <CardBody id="expenses-category-chart-panel" style={{ padding: "1rem 1rem 0.75rem", background: "rgba(0,0,0,0.08)" }}>
+                {categoryBarData ? (
+                  <div className="exp-glass-chart-well exp-category-bar-wrap" style={{ height: categoryBarHeight }}>
+                    <Bar data={categoryBarData} options={categoryBarOptions} />
+                  </div>
+                ) : (
+                  <div style={{ textAlign: "center", color: "rgba(255,255,255,0.28)", padding: "2rem", fontSize: "0.85rem" }}>No expense categories this month</div>
+                )}
+              </CardBody>
+            </Collapse>
           </Card>
         </Col>
       </Row>
@@ -422,14 +751,14 @@ function Expenses() {
                   <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.83rem" }}>
                     <thead>
                       <tr>
-                        {["#", "Date", "Name", "Amount", "Category", ""].map((h, i) => (
+                        {["#", "Recorded", "Name", "Amount", "Category", ""].map((h, i) => (
                           <th key={i} style={{ padding: "11px 14px", color: "rgba(255,255,255,0.4)", fontWeight: 700, textAlign: i === 3 || i === 5 ? "right" : "left", whiteSpace: "nowrap", fontSize: "0.68rem", letterSpacing: "0.07em", textTransform: "uppercase", borderBottom: "1px solid rgba(255,255,255,0.08)", background: "rgba(255,255,255,0.03)" }}>{h}</th>
                         ))}
                       </tr>
                     </thead>
                     <tbody>
                       {entries.map((entry, idx) => {
-                        const isExpense = entry.type === "expense";
+                        const isExpense = rowEffectiveType(entry) === "expense";
                         const amtColor = isExpense ? "#f87171" : "#6ee7b7";
                         return (
                           <tr
@@ -439,7 +768,14 @@ function Expenses() {
                             onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
                           >
                             <td style={{ padding: "11px 14px", color: "rgba(255,255,255,0.28)", fontWeight: 600, width: 40 }}>{(page - 1) * PAGE_SIZE + idx + 1}</td>
-                            <td style={{ padding: "11px 14px", color: "rgba(255,255,255,0.5)", whiteSpace: "nowrap" }}>{format(new Date(entry.date), "dd MMM")}</td>
+                            <td style={{ padding: "11px 14px", color: "rgba(255,255,255,0.5)", whiteSpace: "nowrap", verticalAlign: "top" }}>
+                              <div>{format(entry.createdAt ? new Date(entry.createdAt) : new Date(entry.date), "dd MMM yyyy")}</div>
+                              {entry.createdAt ? (
+                                <div style={{ fontSize: "0.65rem", color: "rgba(255,255,255,0.32)", marginTop: 3, fontWeight: 600 }}>
+                                  Txn · {format(new Date(entry.date), "dd MMM yyyy")}
+                                </div>
+                              ) : null}
+                            </td>
                             <td style={{ padding: "11px 14px", color: "#fff", fontWeight: 700, fontSize: "0.88rem", maxWidth: 200, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{entry.name}</td>
                             <td style={{ padding: "11px 14px", textAlign: "right", whiteSpace: "nowrap", color: amtColor, fontWeight: 800, fontSize: "0.9rem" }}>
                               {`${isExpense ? "−" : "+"}\u20B9${entry.amount.toLocaleString("en-IN", { maximumFractionDigits: 2 })}`}

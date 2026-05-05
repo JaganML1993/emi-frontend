@@ -60,6 +60,8 @@ function Sidebar(props) {
   });
   const linkOnClick = () => {
     document.documentElement.classList.remove("nav-open");
+    requestAnimationFrame(() => window.dispatchEvent(new Event("resize")));
+    setTimeout(() => window.dispatchEvent(new Event("resize")), 280);
   };
   const { routes, logo } = props;
   let logoImg = null;

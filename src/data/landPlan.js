@@ -1,7 +1,7 @@
 import { format, addMonths } from "date-fns";
 
-/** Plan starts June 2025 — 24 months to land purchase goal */
-export const LAND_PLAN_START = new Date(2025, 5, 1);
+/** Plan starts June 2026 — 24 months to land purchase goal */
+export const LAND_PLAN_START = new Date(2026, 5, 1);
 export const LAND_PLAN_MONTHS_COUNT = 24;
 
 const TARGETS = [
